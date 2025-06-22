@@ -55,7 +55,17 @@ Project website: <https://linuxksdteam.site>
   - `:basename` to insert the current file's basename
   - `:dirname` to insert the current file's directory
   - `:openrecent` to reopen the last opened file
+  - `:lowerall`/`:upperall` to change case of the whole buffer
+  - `:swapcase` to flip the case of the selection
+  - `:trimleading` to remove leading whitespace
+  - `:insertuser` to insert your username
+  - `:inserthost` to insert the host name
+  - `:linecount` to show the total number of lines
+  - `:transpose` to swap the current line with the next
+  - `:insertfile [file]` to insert another file's contents
+  - `:readonly` to toggle read-only mode
   - Error dialogs for failed file or command actions
+  - Search dialog available from the Tools menu
 
 ## Requirements
 

@@ -14,6 +14,7 @@ typedef struct {
     gchar *current_file;
     gboolean command_mode;
     gboolean wrap;
+    gboolean readonly;
 } VenApp;
 
 static gchar *last_opened = NULL;
@@ -69,6 +70,17 @@ static void insert_random(VenApp *app);
 static void insert_basename(VenApp *app);
 static void insert_dirname(VenApp *app);
 static void open_recent(VenApp *app);
+static void lower_all(VenApp *app);
+static void upper_all(VenApp *app);
+static void swap_case(VenApp *app);
+static void trim_leading(VenApp *app);
+static void insert_username(VenApp *app);
+static void insert_hostname(VenApp *app);
+static void line_count(VenApp *app);
+static void transpose_line(VenApp *app);
+static void insert_file_contents(VenApp *app, const gchar *fname);
+static void toggle_readonly(VenApp *app);
+static void search_dialog(GtkWidget *widget, gpointer data);
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
@@ -190,6 +202,16 @@ static void show_help(VenApp *app) {
         ":basename - insert basename\n"
         ":dirname - insert dirname\n"
         ":openrecent - open recent file\n"
+        ":lowerall - lowercase whole buffer\n"
+        ":upperall - uppercase whole buffer\n"
+        ":swapcase - toggle case\n"
+        ":trimleading - remove leading spaces\n"
+        ":insertuser - insert username\n"
+        ":inserthost - insert hostname\n"
+        ":linecount - show line count\n"
+        ":transpose - swap line with next\n"
+        ":insertfile [file] - insert another file\n"
+        ":readonly - toggle read-only\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
         ":goto N - jump to line N\n"
@@ -788,6 +810,171 @@ static void open_recent(VenApp *app) {
         open_file(app, last_opened);
 }
 
+static void lower_all(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *low = g_utf8_strdown(text, -1);
+    gtk_text_buffer_set_text(app->buffer, low, -1);
+    g_free(text);
+    g_free(low);
+}
+
+static void upper_all(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *up = g_utf8_strup(text, -1);
+    gtk_text_buffer_set_text(app->buffer, up, -1);
+    g_free(text);
+    g_free(up);
+}
+
+static gchar *swap_case_str(const gchar *s) {
+    GString *out = g_string_new(NULL);
+    const gchar *p = s;
+    while (*p) {
+        gunichar c = g_utf8_get_char(p);
+        if (g_unichar_isupper(c))
+            c = g_unichar_tolower(c);
+        else if (g_unichar_islower(c))
+            c = g_unichar_toupper(c);
+        gchar buf[6];
+        gint len = g_unichar_to_utf8(c, buf);
+        g_string_append_len(out, buf, len);
+        p = g_utf8_next_char(p);
+    }
+    return g_string_free(out, FALSE);
+}
+
+static void swap_case(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *swap = swap_case_str(text);
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, swap, -1);
+    g_free(text);
+    g_free(swap);
+}
+
+static void trim_leading(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        gchar *l = lines[i];
+        while (*l == ' ' || *l == '\t')
+            l++;
+        g_string_append(out, l);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_set_text(app->buffer, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void insert_username(VenApp *app) {
+    const gchar *u = g_get_user_name();
+    if (!u)
+        return;
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, u, -1);
+}
+
+static void insert_hostname(VenApp *app) {
+    const gchar *h = g_get_host_name();
+    if (!h)
+        return;
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, h, -1);
+}
+
+static void line_count(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    int lines = 1;
+    for (const gchar *p = text; *p; p++)
+        if (*p == '\n')
+            lines++;
+    gchar *msg = g_strdup_printf("Total lines: %d", lines);
+    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window),
+        GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    g_free(msg);
+    g_free(text);
+}
+
+static void transpose_line(VenApp *app) {
+    GtkTextIter iter, start1, end1, start2, end2;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    start1 = iter;
+    gtk_text_iter_set_line_offset(&start1, 0);
+    end1 = start1;
+    if (!gtk_text_iter_ends_line(&end1))
+        gtk_text_iter_forward_to_line_end(&end1);
+    start2 = end1;
+    if (gtk_text_iter_is_end(&start2))
+        return;
+    gtk_text_iter_forward_char(&start2);
+    end2 = start2;
+    if (!gtk_text_iter_ends_line(&end2))
+        gtk_text_iter_forward_to_line_end(&end2);
+    gchar *l1 = gtk_text_buffer_get_text(app->buffer, &start1, &end1, FALSE);
+    gchar *l2 = gtk_text_buffer_get_text(app->buffer, &start2, &end2, FALSE);
+    gtk_text_buffer_delete(app->buffer, &start1, &end2);
+    gchar *combo = g_strdup_printf("%s\n%s", l2, l1);
+    gtk_text_buffer_insert(app->buffer, &start1, combo, -1);
+    g_free(l1);
+    g_free(l2);
+    g_free(combo);
+}
+
+static void insert_file_contents(VenApp *app, const gchar *fname) {
+    if (!fname || !*fname) {
+        GtkWidget *d = gtk_file_chooser_dialog_new("Insert File", GTK_WINDOW(app->window),
+            GTK_FILE_CHOOSER_ACTION_OPEN,
+            "_Cancel", GTK_RESPONSE_CANCEL, "_Insert", GTK_RESPONSE_ACCEPT, NULL);
+        if (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_ACCEPT) {
+            gchar *name = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(d));
+            insert_file_contents(app, name);
+            g_free(name);
+        }
+        gtk_widget_destroy(d);
+        return;
+    }
+    gchar *text = NULL; gsize len; GError *err = NULL;
+    if (g_file_get_contents(fname, &text, &len, &err)) {
+        GtkTextIter iter;
+        gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+            gtk_text_buffer_get_insert(app->buffer));
+        gtk_text_buffer_insert(app->buffer, &iter, text, len);
+        g_free(text);
+    } else {
+        show_error(app, err ? err->message : "Failed to insert file");
+        if (err)
+            g_error_free(err);
+    }
+}
+
+static void toggle_readonly(VenApp *app) {
+    app->readonly = !app->readonly;
+    gtk_text_view_set_editable(GTK_TEXT_VIEW(app->textview), !app->readonly);
+    update_status(app, app->readonly ? "Read-only" : "Editable");
+}
+
 static void goto_line_dialog(GtkWidget *widget, gpointer data) {
     VenApp *app = data;
     GtkWidget *d = gtk_dialog_new_with_buttons("Go To Line", GTK_WINDOW(app->window),
@@ -827,6 +1014,22 @@ static void replace_dialog(GtkWidget *widget, gpointer data) {
         replace_text(app, s, r);
     g_free(s);
     g_free(r);
+}
+
+static void search_dialog(GtkWidget *widget, gpointer data) {
+    VenApp *app = data;
+    GtkWidget *d = gtk_dialog_new_with_buttons("Search", GTK_WINDOW(app->window),
+        GTK_DIALOG_MODAL, "_Cancel", GTK_RESPONSE_CANCEL, "_Search", GTK_RESPONSE_ACCEPT, NULL);
+    GtkWidget *entry = gtk_entry_new();
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(d))), entry, TRUE, TRUE, 0);
+    gtk_widget_show(entry);
+    gchar *pattern = NULL;
+    if (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_ACCEPT)
+        pattern = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+    gtk_widget_destroy(d);
+    if (pattern && *pattern)
+        search_text(app, pattern);
+    g_free(pattern);
 }
 
 static void process_command(VenApp *app, const gchar *cmd) {
@@ -926,6 +1129,30 @@ static void process_command(VenApp *app, const gchar *cmd) {
         insert_basename(app);
     } else if (g_strcmp0(cmd, "dirname") == 0 || g_strcmp0(cmd, ":dirname") == 0) {
         insert_dirname(app);
+    } else if (g_strcmp0(cmd, "lowerall") == 0 || g_strcmp0(cmd, ":lowerall") == 0) {
+        lower_all(app);
+    } else if (g_strcmp0(cmd, "upperall") == 0 || g_strcmp0(cmd, ":upperall") == 0) {
+        upper_all(app);
+    } else if (g_strcmp0(cmd, "swapcase") == 0 || g_strcmp0(cmd, ":swapcase") == 0) {
+        swap_case(app);
+    } else if (g_strcmp0(cmd, "trimleading") == 0 || g_strcmp0(cmd, ":trimleading") == 0) {
+        trim_leading(app);
+    } else if (g_strcmp0(cmd, "insertuser") == 0 || g_strcmp0(cmd, ":insertuser") == 0) {
+        insert_username(app);
+    } else if (g_strcmp0(cmd, "inserthost") == 0 || g_strcmp0(cmd, ":inserthost") == 0) {
+        insert_hostname(app);
+    } else if (g_strcmp0(cmd, "linecount") == 0 || g_strcmp0(cmd, ":linecount") == 0) {
+        line_count(app);
+    } else if (g_strcmp0(cmd, "transpose") == 0 || g_strcmp0(cmd, ":transpose") == 0) {
+        transpose_line(app);
+    } else if (g_str_has_prefix(cmd, "insertfile ") || g_strcmp0(cmd, ":insertfile") == 0) {
+        const gchar *arg = strchr(cmd, ' ');
+        if (arg)
+            insert_file_contents(app, arg + 1);
+        else
+            insert_file_contents(app, NULL);
+    } else if (g_strcmp0(cmd, "readonly") == 0 || g_strcmp0(cmd, ":readonly") == 0) {
+        toggle_readonly(app);
     } else if (g_strcmp0(cmd, "openrecent") == 0 || g_strcmp0(cmd, ":openrecent") == 0) {
         open_recent(app);
     } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
@@ -1078,6 +1305,17 @@ int main(int argc, char *argv[]) {
     GtkWidget *basei = gtk_menu_item_new_with_label("Insert Basename");
     GtkWidget *diri = gtk_menu_item_new_with_label("Insert Dirname");
     GtkWidget *recenti = gtk_menu_item_new_with_label("Open Recent");
+    GtkWidget *loweralli = gtk_menu_item_new_with_label("Lowercase All");
+    GtkWidget *upperalli = gtk_menu_item_new_with_label("Uppercase All");
+    GtkWidget *swapcasei = gtk_menu_item_new_with_label("Swap Case");
+    GtkWidget *trimleadingi = gtk_menu_item_new_with_label("Trim Leading");
+    GtkWidget *insertuseri = gtk_menu_item_new_with_label("Insert Username");
+    GtkWidget *inserthosti = gtk_menu_item_new_with_label("Insert Hostname");
+    GtkWidget *linecounti = gtk_menu_item_new_with_label("Line Count");
+    GtkWidget *transposei = gtk_menu_item_new_with_label("Transpose Line");
+    GtkWidget *insertfilei = gtk_menu_item_new_with_label("Insert File");
+    GtkWidget *readonlyi = gtk_menu_item_new_with_label("Toggle Readonly");
+    GtkWidget *searchi = gtk_menu_item_new_with_label("Search");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
@@ -1114,6 +1352,17 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), basei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), diri);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), recenti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), loweralli);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), upperalli);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), swapcasei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), trimleadingi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), insertuseri);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), inserthosti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), linecounti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), transposei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), insertfilei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), readonlyi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), searchi);
 
     GtkWidget *helpmenu = gtk_menu_new();
     GtkWidget *help = gtk_menu_item_new_with_mnemonic("_Help");
@@ -1128,6 +1377,7 @@ int main(int argc, char *argv[]) {
     app.textview = gtk_text_view_new();
     app.buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(app.textview));
     app.wrap = TRUE;
+    app.readonly = FALSE;
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app.textview), GTK_WRAP_WORD);
     GtkWidget *scroller = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scroller), app.textview);
@@ -1189,6 +1439,17 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(basei), "app", &app);
     g_object_set_data(G_OBJECT(diri), "app", &app);
     g_object_set_data(G_OBJECT(recenti), "app", &app);
+    g_object_set_data(G_OBJECT(loweralli), "app", &app);
+    g_object_set_data(G_OBJECT(upperalli), "app", &app);
+    g_object_set_data(G_OBJECT(swapcasei), "app", &app);
+    g_object_set_data(G_OBJECT(trimleadingi), "app", &app);
+    g_object_set_data(G_OBJECT(insertuseri), "app", &app);
+    g_object_set_data(G_OBJECT(inserthosti), "app", &app);
+    g_object_set_data(G_OBJECT(linecounti), "app", &app);
+    g_object_set_data(G_OBJECT(transposei), "app", &app);
+    g_object_set_data(G_OBJECT(insertfilei), "app", &app);
+    g_object_set_data(G_OBJECT(readonlyi), "app", &app);
+    g_object_set_data(G_OBJECT(searchi), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -1236,6 +1497,17 @@ int main(int argc, char *argv[]) {
     g_signal_connect(basei, "activate", G_CALLBACK(on_menu_activate), "basename");
     g_signal_connect(diri, "activate", G_CALLBACK(on_menu_activate), "dirname");
     g_signal_connect(recenti, "activate", G_CALLBACK(on_menu_activate), "openrecent");
+    g_signal_connect(loweralli, "activate", G_CALLBACK(on_menu_activate), "lowerall");
+    g_signal_connect(upperalli, "activate", G_CALLBACK(on_menu_activate), "upperall");
+    g_signal_connect(swapcasei, "activate", G_CALLBACK(on_menu_activate), "swapcase");
+    g_signal_connect(trimleadingi, "activate", G_CALLBACK(on_menu_activate), "trimleading");
+    g_signal_connect(insertuseri, "activate", G_CALLBACK(on_menu_activate), "insertuser");
+    g_signal_connect(inserthosti, "activate", G_CALLBACK(on_menu_activate), "inserthost");
+    g_signal_connect(linecounti, "activate", G_CALLBACK(on_menu_activate), "linecount");
+    g_signal_connect(transposei, "activate", G_CALLBACK(on_menu_activate), "transpose");
+    g_signal_connect(insertfilei, "activate", G_CALLBACK(on_menu_activate), ":insertfile");
+    g_signal_connect(readonlyi, "activate", G_CALLBACK(on_menu_activate), "readonly");
+    g_signal_connect(searchi, "activate", G_CALLBACK(search_dialog), &app);
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
 
