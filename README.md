@@ -16,6 +16,14 @@ More advanced pages can specify a layout and define content blocks:
 python ven.py article.ven
 ```
 
+To experiment in a browser, start the built-in server:
+
+```bash
+python ven.py --serve --port 8000
+```
+
+Then open `http://localhost:8000/webapp.ven`.
+
 ## Syntax
 
 Code blocks are wrapped in `<?VEN ... ?>` tags. If the tag starts with `<?VEN=` the expression is evaluated and inserted into the output. Otherwise the code is executed and anything printed becomes part of the result. A few helper functions are available inside each block:
@@ -36,4 +44,5 @@ for i in range(3):
 ```
 
 See `index.ven` for a complete example that includes other files.
-`article.ven` demonstrates layouts and content blocks.
+`article.ven` demonstrates layouts and content blocks. `webapp.ven` shows
+how VEN pages can embed CSS and JavaScript.

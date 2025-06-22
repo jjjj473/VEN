@@ -3,6 +3,8 @@ import io
 import sys
 import os
 import html
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+import urllib.parse
 
 
 def render(file_path, context=None, _is_root=True):
@@ -88,10 +90,45 @@ def render(file_path, context=None, _is_root=True):
     return result
 
 
+def serve(directory='.', host='localhost', port=8000):
+    """Start a simple HTTP server that renders .ven files on the fly."""
+    os.chdir(directory)
+
+    class VenHandler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            path, _, query = self.path.partition('?')
+            fs_path = path.lstrip('/') or 'index.ven'
+            if fs_path.endswith('.ven') and os.path.exists(fs_path):
+                try:
+                    query_dict = urllib.parse.parse_qs(query)
+                    context = {'query': {k: v[0] if len(v) == 1 else v for k, v in query_dict.items()}}
+                    result = render(fs_path, context)
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/html; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(result.encode('utf-8'))
+                except Exception as e:
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(f'Error: {e}'.encode('utf-8'))
+            else:
+                super().do_GET()
+
+    httpd = HTTPServer((host, port), VenHandler)
+    print(f'Serving {directory} on http://{host}:{port} (Press CTRL+C to quit)')
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='VEN language interpreter')
-    parser.add_argument('source', help='Path to the .ven file')
+    parser.add_argument('source', nargs='?', help='Path to the .ven file')
+    parser.add_argument('--serve', action='store_true', help='Start an HTTP server')
+    parser.add_argument('--host', default='localhost', help='Server host')
+    parser.add_argument('--port', type=int, default=8000, help='Server port')
     args = parser.parse_args()
 
     # Provide common modules in the context
@@ -100,6 +137,14 @@ def main():
         'os': os,
         'html': html,
     }
+
+    if args.serve:
+        serve('.', args.host, args.port)
+        return
+
+    if not args.source:
+        parser.error('source is required unless --serve is used')
+
     result = render(args.source, ctx)
     print(result)
 

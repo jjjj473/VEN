@@ -1,0 +1,23 @@
+<?VEN
+# Example page with CSS and JavaScript
+title = "VEN Web App"
+bgcolor = "#fafafa"
+layout("layout.ven")
+start_block("content")
+?>
+<h1>VEN Web App</h1>
+<style>
+body { background-color: <?VEN= bgcolor ?>; font-family: Arial; }
+button { padding: 8px 16px; }
+</style>
+<button id="btn">Click me</button>
+<p id="count">0</p>
+<script>
+let count = 0;
+document.getElementById('btn').addEventListener('click', () => {
+  count++;
+  document.getElementById('count').textContent = count;
+});
+</script>
+<?VEN end_block() ?>
+
