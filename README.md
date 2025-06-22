@@ -36,6 +36,7 @@ Project website: <https://linuxksdteam.site>
   - `:wrap` to toggle text wrapping
   - `:todo` to insert a TODO label
   - `:addlnum` to prefix lines with numbers
+  - Error dialogs for failed file or command actions
 
 ## Requirements
 

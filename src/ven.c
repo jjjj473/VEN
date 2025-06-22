@@ -24,6 +24,13 @@ static void update_status(VenApp *app, const gchar *msg) {
     g_free(text);
 }
 
+static void show_error(VenApp *app, const gchar *msg) {
+    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window),
+        GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+}
+
 static void open_file_dialog(VenApp *app);
 static void save_file_dialog(VenApp *app);
 static void duplicate_line(VenApp *app);
@@ -52,14 +59,18 @@ static void open_file(VenApp *app, const gchar *fname) {
     }
     gchar *content = NULL;
     gsize len;
-    if (g_file_get_contents(fname, &content, &len, NULL)) {
+    GError *err = NULL;
+    if (g_file_get_contents(fname, &content, &len, &err)) {
         gtk_text_buffer_set_text(app->buffer, content, len);
         g_free(content);
         g_free(app->current_file);
         app->current_file = g_strdup(fname);
         update_status(app, g_strdup_printf("Opened %s", fname));
     } else {
+        show_error(app, err ? err->message : "Failed to open file");
         update_status(app, "Failed to open file");
+        if (err)
+            g_error_free(err);
     }
 }
 
@@ -71,12 +82,16 @@ static void save_file(VenApp *app, const gchar *fname) {
     GtkTextIter start, end;
     gtk_text_buffer_get_bounds(app->buffer, &start, &end);
     gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
-    if (g_file_set_contents(fname, text, -1, NULL)) {
+    GError *err = NULL;
+    if (g_file_set_contents(fname, text, -1, &err)) {
         g_free(app->current_file);
         app->current_file = g_strdup(fname);
         update_status(app, g_strdup_printf("Saved %s", fname));
     } else {
+        show_error(app, err ? err->message : "Failed to save file");
         update_status(app, "Failed to save file");
+        if (err)
+            g_error_free(err);
     }
     g_free(text);
 }
@@ -168,13 +183,16 @@ static void search_text(VenApp *app, const gchar *pattern) {
 static void run_shell_command(VenApp *app, const gchar *cmd) {
     gchar *output = NULL;
     GError *err = NULL;
-    g_spawn_command_line_sync(cmd, &output, NULL, NULL, &err);
-    if (!output)
-        output = g_strdup(err ? err->message : "");
-    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
-        GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", output);
-    gtk_dialog_run(GTK_DIALOG(d));
-    gtk_widget_destroy(d);
+    gboolean ok = g_spawn_command_line_sync(cmd, &output, NULL, NULL, &err);
+    if (!ok) {
+        show_error(app, err ? err->message : "Failed to run command");
+    } else {
+        GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+            "%s", output ? output : "");
+        gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+    }
     g_free(output);
     if (err)
         g_error_free(err);
