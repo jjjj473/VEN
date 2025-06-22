@@ -10,6 +10,12 @@ Use the `ven.py` interpreter to render a `.ven` file:
 python ven.py index.ven
 ```
 
+More advanced pages can specify a layout and define content blocks:
+
+```bash
+python ven.py article.ven
+```
+
 ## Syntax
 
 Code blocks are wrapped in `<?VEN ... ?>` tags. If the tag starts with `<?VEN=` the expression is evaluated and inserted into the output. Otherwise the code is executed and anything printed becomes part of the result. A few helper functions are available inside each block:
@@ -17,6 +23,9 @@ Code blocks are wrapped in `<?VEN ... ?>` tags. If the tag starts with `<?VEN=` 
 - `echo(*args)` prints text without adding spaces or newlines
 - `include(path)` renders another `.ven` file relative to the current one
 - `escape(text)` escapes HTML special characters
+- `layout(path)` sets a base template for the current page
+- `start_block(name)` and `end_block()` capture output for a named block
+- `yield_block(name)` inserts a captured block
 
 ```html
 <p>The time is <?VEN= time.strftime("%H:%M:%S") ?></p>
@@ -27,3 +36,4 @@ for i in range(3):
 ```
 
 See `index.ven` for a complete example that includes other files.
+`article.ven` demonstrates layouts and content blocks.

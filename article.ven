@@ -1,0 +1,16 @@
+<?VEN
+# Set page title and use layout
+title = "Articles"
+layout("layout.ven")
+start_block("content")
+?>
+<h1>Article List</h1>
+<ul>
+<?VEN
+posts = ["Alpha", "Beta", "Gamma"]
+for p in posts:
+    echo(f"<li>{escape(p)}</li>\n")
+?>
+</ul>
+<?VEN end_block() ?>
+
