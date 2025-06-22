@@ -15,6 +15,8 @@ typedef struct {
     gboolean wrap;
 } VenApp;
 
+static gchar *last_opened = NULL;
+
 static void update_status(VenApp *app, const gchar *msg) {
     gchar *text = g_strdup_printf("[%s]%s%s",
         app->command_mode ? "COMMAND" : "INSERT",
@@ -59,6 +61,13 @@ static void duplicate_word(VenApp *app);
 static void join_lines(VenApp *app);
 static void remove_blank_lines(VenApp *app);
 static void count_words(VenApp *app);
+static void duplicate_selection(VenApp *app);
+static void count_selection(VenApp *app);
+static void insert_timestamp(VenApp *app);
+static void insert_random(VenApp *app);
+static void insert_basename(VenApp *app);
+static void insert_dirname(VenApp *app);
+static void open_recent(VenApp *app);
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
@@ -79,6 +88,8 @@ static void open_file(VenApp *app, const gchar *fname) {
         g_free(content);
         g_free(app->current_file);
         app->current_file = g_strdup(fname);
+        g_free(last_opened);
+        last_opened = g_strdup(fname);
         update_status(app, g_strdup_printf("Opened %s", fname));
     } else {
         show_error(app, err ? err->message : "Failed to open file");
@@ -171,6 +182,13 @@ static void show_help(VenApp *app) {
         ":join - join lines\n"
         ":noblank - remove blank lines\n"
         ":wordcount - word count\n"
+        ":dupselect - duplicate selection\n"
+        ":countsel - count selection\n"
+        ":timestamp - insert timestamp\n"
+        ":rand - insert random number\n"
+        ":basename - insert basename\n"
+        ":dirname - insert dirname\n"
+        ":openrecent - open recent file\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
         ":goto N - jump to line N\n"
@@ -678,6 +696,88 @@ static void count_words(VenApp *app) {
     g_free(text);
 }
 
+static void duplicate_selection(VenApp *app) {
+    GtkTextIter start, end;
+    if (gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end)) {
+        gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+        gtk_text_buffer_insert(app->buffer, &end, text, -1);
+        g_free(text);
+    }
+}
+
+static void count_selection(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        return;
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    int lines = 1;
+    for (const gchar *p = text; *p; p++)
+        if (*p == '\n')
+            lines++;
+    gchar **words = g_strsplit_set(text, " \n\t", -1);
+    int wcnt = 0;
+    for (int i = 0; words[i]; i++)
+        if (*words[i])
+            wcnt++;
+    int chars = strlen(text);
+    gchar *msg = g_strdup_printf("Selection - Lines: %d Words: %d Chars: %d", lines, wcnt, chars);
+    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    g_free(msg);
+    g_strfreev(words);
+    g_free(text);
+}
+
+static void insert_timestamp(VenApp *app) {
+    GDateTime *now = g_date_time_new_now_local();
+    gchar *str = g_date_time_format(now, "%Y-%m-%d %H:%M:%S");
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, str, -1);
+    g_free(str);
+    g_date_time_unref(now);
+}
+
+static void insert_random(VenApp *app) {
+    guint r = g_random_int_range(0, 10000);
+    gchar *str = g_strdup_printf("%u", r);
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, str, -1);
+    g_free(str);
+}
+
+static void insert_basename(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *base = g_path_get_basename(app->current_file);
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, base, -1);
+    g_free(base);
+}
+
+static void insert_dirname(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *dir = g_path_get_dirname(app->current_file);
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, dir, -1);
+    g_free(dir);
+}
+
+static void open_recent(VenApp *app) {
+    if (last_opened)
+        open_file(app, last_opened);
+}
+
 static void goto_line_dialog(GtkWidget *widget, gpointer data) {
     VenApp *app = data;
     GtkWidget *d = gtk_dialog_new_with_buttons("Go To Line", GTK_WINDOW(app->window),
@@ -804,6 +904,20 @@ static void process_command(VenApp *app, const gchar *cmd) {
         remove_blank_lines(app);
     } else if (g_strcmp0(cmd, "wordcount") == 0 || g_strcmp0(cmd, ":wordcount") == 0) {
         count_words(app);
+    } else if (g_strcmp0(cmd, "dupselect") == 0 || g_strcmp0(cmd, ":dupselect") == 0) {
+        duplicate_selection(app);
+    } else if (g_strcmp0(cmd, "countsel") == 0 || g_strcmp0(cmd, ":countsel") == 0) {
+        count_selection(app);
+    } else if (g_strcmp0(cmd, "timestamp") == 0 || g_strcmp0(cmd, ":timestamp") == 0) {
+        insert_timestamp(app);
+    } else if (g_strcmp0(cmd, "rand") == 0 || g_strcmp0(cmd, ":rand") == 0) {
+        insert_random(app);
+    } else if (g_strcmp0(cmd, "basename") == 0 || g_strcmp0(cmd, ":basename") == 0) {
+        insert_basename(app);
+    } else if (g_strcmp0(cmd, "dirname") == 0 || g_strcmp0(cmd, ":dirname") == 0) {
+        insert_dirname(app);
+    } else if (g_strcmp0(cmd, "openrecent") == 0 || g_strcmp0(cmd, ":openrecent") == 0) {
+        open_recent(app);
     } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
         const gchar *arg = strstr(cmd, " ");
         if (arg)
@@ -947,6 +1061,13 @@ int main(int argc, char *argv[]) {
     GtkWidget *joini = gtk_menu_item_new_with_label("Join Lines");
     GtkWidget *noblanki = gtk_menu_item_new_with_label("Remove Blank Lines");
     GtkWidget *wordcounti = gtk_menu_item_new_with_label("Word Count");
+    GtkWidget *dupselecti = gtk_menu_item_new_with_label("Duplicate Selection");
+    GtkWidget *countseli = gtk_menu_item_new_with_label("Count Selection");
+    GtkWidget *tsi = gtk_menu_item_new_with_label("Insert Timestamp");
+    GtkWidget *randi = gtk_menu_item_new_with_label("Insert Random");
+    GtkWidget *basei = gtk_menu_item_new_with_label("Insert Basename");
+    GtkWidget *diri = gtk_menu_item_new_with_label("Insert Dirname");
+    GtkWidget *recenti = gtk_menu_item_new_with_label("Open Recent");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
@@ -976,6 +1097,13 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), joini);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), noblanki);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), wordcounti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), dupselecti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), countseli);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), tsi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), randi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), basei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), diri);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), recenti);
 
     GtkWidget *helpmenu = gtk_menu_new();
     GtkWidget *help = gtk_menu_item_new_with_mnemonic("_Help");
@@ -1044,6 +1172,13 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(joini), "app", &app);
     g_object_set_data(G_OBJECT(noblanki), "app", &app);
     g_object_set_data(G_OBJECT(wordcounti), "app", &app);
+    g_object_set_data(G_OBJECT(dupselecti), "app", &app);
+    g_object_set_data(G_OBJECT(countseli), "app", &app);
+    g_object_set_data(G_OBJECT(tsi), "app", &app);
+    g_object_set_data(G_OBJECT(randi), "app", &app);
+    g_object_set_data(G_OBJECT(basei), "app", &app);
+    g_object_set_data(G_OBJECT(diri), "app", &app);
+    g_object_set_data(G_OBJECT(recenti), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -1084,6 +1219,13 @@ int main(int argc, char *argv[]) {
     g_signal_connect(joini, "activate", G_CALLBACK(on_menu_activate), "join");
     g_signal_connect(noblanki, "activate", G_CALLBACK(on_menu_activate), "noblank");
     g_signal_connect(wordcounti, "activate", G_CALLBACK(on_menu_activate), "wordcount");
+    g_signal_connect(dupselecti, "activate", G_CALLBACK(on_menu_activate), "dupselect");
+    g_signal_connect(countseli, "activate", G_CALLBACK(on_menu_activate), "countsel");
+    g_signal_connect(tsi, "activate", G_CALLBACK(on_menu_activate), "timestamp");
+    g_signal_connect(randi, "activate", G_CALLBACK(on_menu_activate), "rand");
+    g_signal_connect(basei, "activate", G_CALLBACK(on_menu_activate), "basename");
+    g_signal_connect(diri, "activate", G_CALLBACK(on_menu_activate), "dirname");
+    g_signal_connect(recenti, "activate", G_CALLBACK(on_menu_activate), "openrecent");
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
 

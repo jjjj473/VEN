@@ -48,6 +48,13 @@ Project website: <https://linuxksdteam.site>
   - `:join` to join selected lines
   - `:noblank` to remove blank lines
   - `:wordcount` to show a word count dialog
+  - `:dupselect` to duplicate the selected text
+  - `:countsel` to count lines, words, and characters in the selection
+  - `:timestamp` to insert the current timestamp
+  - `:rand` to insert a random number
+  - `:basename` to insert the current file's basename
+  - `:dirname` to insert the current file's directory
+  - `:openrecent` to reopen the last opened file
   - Error dialogs for failed file or command actions
 
 ## Requirements
