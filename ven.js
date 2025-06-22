@@ -1,6 +1,8 @@
 let editor;
 let currentFileName = '';
 let fontSize = 14;
+let wrapEnabled = false;
+let currentTheme = 'default';
 function setFontSize(size) {
     fontSize = size;
     editor.getWrapperElement().style.fontSize = fontSize + 'px';
@@ -32,22 +34,33 @@ function init() {
     document.getElementById('fontDecBtn').addEventListener('click', decFont);
     document.getElementById('numbersBtn').addEventListener('click', toggleNumbers);
     document.getElementById('helpBtn').addEventListener('click', showHelp);
+    document.getElementById('previewBtn').addEventListener('click', preview);
+    document.getElementById('wrapBtn').addEventListener('click', toggleWrap);
+    document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+    document.getElementById('statsBtn').addEventListener('click', showStats);
+    document.getElementById('aboutBtn').addEventListener('click', showAbout);
     document.getElementById('closeHelp').addEventListener('click', () => toggleHelp(false));
     document.getElementById('fileInput').addEventListener('change', openFile);
+    editor.on('cursorActivity', updateStatus);
     fetch('help.txt').then(r => r.text()).then(t => {
         document.getElementById('helpText').textContent = t;
     });
+    updateStatus();
 }
 function newFile() {
     editor.setValue('');
     currentFileName = '';
+    updateStatus();
 }
 function openFile(e) {
     const file = e.target.files[0];
     if (file) {
         currentFileName = file.name;
         const reader = new FileReader();
-        reader.onload = () => editor.setValue(reader.result);
+        reader.onload = () => {
+            editor.setValue(reader.result);
+            updateStatus();
+        };
         reader.readAsText(file);
     }
 }
@@ -95,6 +108,29 @@ function preview() {
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function toggleWrap() {
+    wrapEnabled = !wrapEnabled;
+    editor.setOption('lineWrapping', wrapEnabled);
+}
+function toggleTheme() {
+    currentTheme = currentTheme === 'default' ? 'monokai' : 'default';
+    editor.setOption('theme', currentTheme);
+}
+function showStats() {
+    const text = editor.getValue();
+    const lines = text.split(/\r?\n/).length;
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const chars = text.length;
+    alert(`Lines: ${lines}\nWords: ${words}\nChars: ${chars}`);
+}
+function showAbout() {
+    alert('VEN Web Editor\nA simple CodeMirror-based editor');
+}
+function updateStatus() {
+    const pos = editor.getCursor();
+    const info = `Ln ${pos.line + 1}, Col ${pos.ch + 1}` + (currentFileName ? ' | ' + currentFileName : '');
+    document.getElementById('status').textContent = info;
 }
 function saveFile() {
     const blob = new Blob([editor.getValue()], {type: 'text/plain'});

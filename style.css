@@ -11,6 +11,25 @@ body {
     display: flex;
     flex-wrap: wrap;
 }
+#advToolbar {
+    background: #222;
+    padding: 4px;
+    display: flex;
+    flex-wrap: wrap;
+}
+#advToolbar button {
+    margin: 2px;
+    color: #fff;
+    background: #666;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+#status {
+    background: #eee;
+    padding: 2px 6px;
+    font-size: 12px;
+}
 #toolbar button {
     margin: 2px;
     color: #fff;

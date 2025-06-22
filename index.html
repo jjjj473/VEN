@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VEN Web Editor</title>
 <link rel="stylesheet" href="https://unpkg.com/codemirror@5/lib/codemirror.css">
+<link rel="stylesheet" href="https://unpkg.com/codemirror@5/theme/monokai.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,9 +26,17 @@
 <button id="fontDecBtn">A-</button>
 <button id="numbersBtn">#</button>
 <button id="helpBtn">Help</button>
+<button id="previewBtn">Preview</button>
 <input type="file" id="fileInput" style="display:none"/>
 </div>
+<div id="advToolbar">
+<button id="wrapBtn">Wrap</button>
+<button id="themeBtn">Theme</button>
+<button id="statsBtn">Stats</button>
+<button id="aboutBtn">About</button>
+</div>
 <div id="editor"></div>
+<div id="status"></div>
 <div id="help" class="hidden">
 <pre id="helpText"></pre>
 <button id="closeHelp">Close</button>
