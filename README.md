@@ -92,16 +92,16 @@ Project website: <https://linuxksdteam.site>
 
 ## Building
 
-Install the dependencies and build the editor using `gcc` and `pkg-config`:
+Install the dependencies and build the editor using the provided Makefile:
 
 ```bash
 ./scripts/install_deps.sh
 ```
 
-Then compile the source:
+Then compile the source by running:
 
 ```bash
-gcc -Wall $(pkg-config --cflags gtk+-3.0 gtksourceview-4) -o ven src/ven.c $(pkg-config --libs gtk+-3.0 gtksourceview-4)
+make
 ```
 
 ## Running
