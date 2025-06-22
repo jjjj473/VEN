@@ -1,0 +1,16 @@
+<html>
+<?VEN
+# set a page title
+title = "Advanced VEN"
+print(include("header.ven"))
+?>
+<body>
+<ul>
+<?VEN
+for i in range(5):
+    echo(f"<li>Item {i}</li>\n")
+?>
+</ul>
+<?VEN print(include("footer.ven")) ?>
+</body>
+</html>

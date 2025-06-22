@@ -1,0 +1,14 @@
+<html>
+<head>
+    <title>VEN Example</title>
+</head>
+<body>
+<h1>Welcome to VEN</h1>
+<p>Current time: <?VEN= time.strftime("%Y-%m-%d %H:%M:%S") ?></p>
+<?VEN
+for i in range(3):
+    print(f"<p>Count {i}</p>")
+?>
+</body>
+</html>
+
