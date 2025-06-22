@@ -59,11 +59,20 @@ Project website: <https://linuxksdteam.site>
 
 ## Requirements
 
-- GTK3 development libraries (e.g. `libgtk-3-dev` on Debian/Ubuntu)
+- GTK3 development libraries. You can use the helper script
+  `scripts/install_deps.sh` to automatically install the correct package for
+  many popular Linux distributions including Debian, Ubuntu, Linux Mint,
+  Fedora, CentOS, RHEL, Arch Linux, Manjaro, openSUSE and Gentoo.
 
 ## Building
 
-Compile the editor using `gcc` and `pkg-config`:
+Install the dependencies and build the editor using `gcc` and `pkg-config`:
+
+```bash
+./scripts/install_deps.sh
+```
+
+Then compile the source:
 
 ```bash
 gcc -Wall $(pkg-config --cflags gtk+-3.0) -o ven src/ven.c $(pkg-config --libs gtk+-3.0)

@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
+#include <glib/gstdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -627,8 +628,17 @@ static void run_file(VenApp *app) {
 }
 
 static void open_config(VenApp *app) {
-    gchar *path = g_build_filename(g_get_home_dir(), ".venrc", NULL);
+    const gchar *xdg = g_getenv("XDG_CONFIG_HOME");
+    gchar *base = NULL;
+    if (xdg && *xdg) {
+        base = g_build_filename(xdg, "ven", NULL);
+    } else {
+        base = g_build_filename(g_get_home_dir(), ".config", "ven", NULL);
+    }
+    gchar *path = g_build_filename(base, "venrc", NULL);
+    g_mkdir_with_parents(base, 0700);
     open_file(app, path);
+    g_free(base);
     g_free(path);
 }
 
