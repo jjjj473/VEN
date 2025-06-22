@@ -4,6 +4,8 @@ VEN is a lightweight code editor inspired by Vim but built with a GTK3 GUI.
 It aims to provide Linux users with familiar command-driven editing along
 with a simple graphical interface.
 
+Project website: <https://linuxksdteam.site>
+
 ## Features
 
 - GTK3 based window with a text editing area
@@ -19,6 +21,10 @@ with a simple graphical interface.
   - `:cut`, `:copy`, `:paste` for clipboard actions
   - `:/pattern` to search text
   - `:!cmd` to run a shell command
+  - `:goto N` to jump to a line
+  - `:replace A B` to replace text
+  - `:date` to insert the current date and time
+  - `:visit` to open [Linuxksdteam.site](https://linuxksdteam.site)
   - `:about` to see application info
 
 ## Requirements

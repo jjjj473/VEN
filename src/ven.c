@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -104,6 +105,10 @@ static void show_help(VenApp *app) {
         ":paste - paste clipboard\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
+        ":goto N - jump to line N\n"
+        ":replace A B - replace first A with B\n"
+        ":date - insert current date\n"
+        ":visit - open Linuxksdteam.site\n"
         ":about - about dialog\n"
         ":help - show this help";
     GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
@@ -113,7 +118,7 @@ static void show_help(VenApp *app) {
 }
 
 static void show_about(VenApp *app) {
-    const gchar *msg = "VEN - simple GTK3 editor";
+    const gchar *msg = "VEN - simple GTK3 editor\nhttps://linuxksdteam.site";
     GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
         GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
     gtk_dialog_run(GTK_DIALOG(d));
@@ -180,6 +185,90 @@ static void paste_clipboard(VenApp *app) {
     gtk_text_buffer_paste_clipboard(app->buffer, cb, NULL, TRUE);
 }
 
+static void goto_line(VenApp *app, int line) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_line(app->buffer, &iter, line > 0 ? line - 1 : 0);
+    gtk_text_buffer_place_cursor(app->buffer, &iter);
+    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(app->textview), &iter,
+        0.0, TRUE, 0.5, 0.5);
+    update_status(app, g_strdup_printf("Go to line %d", line));
+}
+
+static void replace_text(VenApp *app, const gchar *search, const gchar *replace) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *pos = g_strstr_len(text, -1, search);
+    if (pos) {
+        GString *str = g_string_new_len(text, pos - text);
+        g_string_append(str, replace);
+        g_string_append(str, pos + strlen(search));
+        gtk_text_buffer_set_text(app->buffer, str->str, -1);
+        update_status(app, "Replaced text");
+        g_string_free(str, TRUE);
+    } else {
+        update_status(app, "Pattern not found");
+    }
+    g_free(text);
+}
+
+static void insert_date(VenApp *app) {
+    GDateTime *dt = g_date_time_new_now_local();
+    gchar *s = g_date_time_format(dt, "%Y-%m-%d %H:%M:%S");
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, s, -1);
+    g_free(s);
+    g_date_time_unref(dt);
+}
+
+static void open_website(VenApp *app) {
+    (void)app;
+    g_app_info_launch_default_for_uri("https://linuxksdteam.site", NULL, NULL);
+}
+
+static void goto_line_dialog(GtkWidget *widget, gpointer data) {
+    VenApp *app = data;
+    GtkWidget *d = gtk_dialog_new_with_buttons("Go To Line", GTK_WINDOW(app->window),
+        GTK_DIALOG_MODAL, "_Cancel", GTK_RESPONSE_CANCEL, "_Go", GTK_RESPONSE_ACCEPT, NULL);
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_input_purpose(GTK_ENTRY(entry), GTK_INPUT_PURPOSE_NUMBER);
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(d))), entry, TRUE, TRUE, 0);
+    gtk_widget_show(entry);
+    int line = -1;
+    if (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_ACCEPT)
+        line = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
+    gtk_widget_destroy(d);
+    if (line > 0)
+        goto_line(app, line);
+}
+
+static void replace_dialog(GtkWidget *widget, gpointer data) {
+    VenApp *app = data;
+    GtkWidget *d = gtk_dialog_new_with_buttons("Replace", GTK_WINDOW(app->window),
+        GTK_DIALOG_MODAL, "_Cancel", GTK_RESPONSE_CANCEL, "_Replace", GTK_RESPONSE_ACCEPT, NULL);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget *search = gtk_entry_new();
+    GtkWidget *repl = gtk_entry_new();
+    gtk_box_pack_start(GTK_BOX(box), gtk_label_new("Search for:"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), search, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), gtk_label_new("Replace with:"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), repl, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(d))), box, TRUE, TRUE, 0);
+    gtk_widget_show_all(box);
+    gchar *s = NULL; gchar *r = NULL;
+    if (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_ACCEPT) {
+        s = g_strdup(gtk_entry_get_text(GTK_ENTRY(search)));
+        r = g_strdup(gtk_entry_get_text(GTK_ENTRY(repl)));
+    }
+    gtk_widget_destroy(d);
+    if (s && r)
+        replace_text(app, s, r);
+    g_free(s);
+    g_free(r);
+}
+
 static void process_command(VenApp *app, const gchar *cmd) {
     if (g_strcmp0(cmd, "q") == 0 || g_strcmp0(cmd, ":q") == 0) {
         gtk_window_close(GTK_WINDOW(app->window));
@@ -213,6 +302,22 @@ static void process_command(VenApp *app, const gchar *cmd) {
         copy_selection(app);
     } else if (g_strcmp0(cmd, "paste") == 0 || g_strcmp0(cmd, ":paste") == 0) {
         paste_clipboard(app);
+    } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
+        const gchar *arg = strstr(cmd, " ");
+        if (arg)
+            goto_line(app, atoi(arg + 1));
+    } else if (g_str_has_prefix(cmd, "replace ") || g_str_has_prefix(cmd, ":replace")) {
+        const gchar *arg = strstr(cmd, " ");
+        if (arg) {
+            gchar **parts = g_strsplit(arg + 1, " ", 2);
+            if (parts[0] && parts[1])
+                replace_text(app, parts[0], parts[1]);
+            g_strfreev(parts);
+        }
+    } else if (g_strcmp0(cmd, "date") == 0 || g_strcmp0(cmd, ":date") == 0) {
+        insert_date(app);
+    } else if (g_strcmp0(cmd, "visit") == 0 || g_strcmp0(cmd, ":visit") == 0) {
+        open_website(app);
     } else if (g_str_has_prefix(cmd, ":!")) {
         run_shell_command(app, cmd + 2);
     } else if (g_str_has_prefix(cmd, "!")) {
@@ -312,7 +417,15 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(menubar), tools);
 
     GtkWidget *runi = gtk_menu_item_new_with_label("Run Command");
+    GtkWidget *gotoi = gtk_menu_item_new_with_label("Go To Line");
+    GtkWidget *replacei = gtk_menu_item_new_with_label("Replace");
+    GtkWidget *datei = gtk_menu_item_new_with_label("Insert Date");
+    GtkWidget *visiti = gtk_menu_item_new_with_label("Visit Website");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), datei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), visiti);
 
     GtkWidget *helpmenu = gtk_menu_new();
     GtkWidget *help = gtk_menu_item_new_with_mnemonic("_Help");
@@ -351,6 +464,10 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(copyi), "app", &app);
     g_object_set_data(G_OBJECT(pastei), "app", &app);
     g_object_set_data(G_OBJECT(runi), "app", &app);
+    g_object_set_data(G_OBJECT(gotoi), "app", &app);
+    g_object_set_data(G_OBJECT(replacei), "app", &app);
+    g_object_set_data(G_OBJECT(datei), "app", &app);
+    g_object_set_data(G_OBJECT(visiti), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -363,6 +480,10 @@ int main(int argc, char *argv[]) {
     g_signal_connect(copyi, "activate", G_CALLBACK(on_menu_activate), "copy");
     g_signal_connect(pastei, "activate", G_CALLBACK(on_menu_activate), "paste");
     g_signal_connect(runi, "activate", G_CALLBACK(run_command_dialog), &app);
+    g_signal_connect(gotoi, "activate", G_CALLBACK(goto_line_dialog), &app);
+    g_signal_connect(replacei, "activate", G_CALLBACK(replace_dialog), &app);
+    g_signal_connect(datei, "activate", G_CALLBACK(on_menu_activate), "date");
+    g_signal_connect(visiti, "activate", G_CALLBACK(on_menu_activate), "visit");
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
 
