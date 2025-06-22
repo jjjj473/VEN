@@ -8,13 +8,16 @@ body {
 #toolbar {
     background: #333;
     padding: 4px;
+    display: flex;
+    flex-wrap: wrap;
 }
 #toolbar button {
-    margin-right: 4px;
+    margin: 2px;
     color: #fff;
     background: #555;
     border: none;
     padding: 6px 10px;
+    cursor: pointer;
 }
 #editor {
     flex: 1;

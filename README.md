@@ -8,7 +8,9 @@ feature-rich editing experience similar to Vim but with a graphical interface.
 
 - Syntax highlighted editing for JavaScript, HTML and CSS
 - Command field for executing Vim-like commands
-- Toolbar buttons for common actions (New, Open, Save, Help)
+- Toolbar buttons for common actions (New, Open, Save, Help) and utilities
+  like Undo, Redo, Cut, Copy, Paste, Find, Replace, Goto, Select All, font
+  size adjustment and toggling line numbers
 - File open and save using the browser's file APIs
 - Help dialog describing available commands
 
@@ -23,6 +25,16 @@ In the command field (bottom of the page) you can type `:command` names:
 - `:help` – show the help dialog
 - `:goto N` – jump to a specific line number
 - `:replace A B` – replace text A with B in the entire buffer
+- `:undo` – undo the last change
+- `:redo` – redo the last undone change
+- `:cut` – cut the selected text
+- `:copy` – copy the selected text
+- `:paste` – paste clipboard contents
+- `:find TEXT` – search for TEXT
+- `:selectall` – select the whole buffer
+- `:fontsize +/-` – increase or decrease font size
+- `:numbers` – toggle line numbers
+- `:preview` – open the buffer in a new tab
 
 ## Usage
 
