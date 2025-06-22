@@ -236,82 +236,15 @@ static void save_file_dialog(VenApp *app) {
 }
 
 static void show_help(VenApp *app) {
-    const gchar *msg =
-        "VEN Commands:\n"
-        ":w [file] - save file\n"
-        ":q - quit\n"
-        ":o [file] - open file\n"
-        ":wq - save and quit\n"
-        ":new - new file\n"
-        ":cut - cut selection\n"
-        ":copy - copy selection\n"
-        ":paste - paste clipboard\n"
-        ":dup - duplicate current line\n"
-        ":del - delete current line\n"
-        ":upper - selection to upper case\n"
-        ":lower - selection to lower case\n"
-        ":trim - trim trailing whitespace\n"
-        ":insertpath - insert file path\n"
-        ":stats - show buffer statistics\n"
-        ":tabs2spaces - convert tabs to spaces\n"
-        ":spaces2tabs - convert spaces to tabs\n"
-        ":wrap - toggle wrapping\n"
-        ":todo - insert TODO label\n"
-        ":addlnum - add line numbers\n"
-        ":comment - comment lines\n"
-        ":uncomment - uncomment lines\n"
-        ":sort - sort lines\n"
-        ":reverse - reverse lines\n"
-        ":indent - indent selection\n"
-        ":unindent - unindent selection\n"
-        ":clear - clear buffer\n"
-        ":uuid - insert UUID\n"
-        ":runfile - run current file\n"
-        ":openconf - open configuration\n"
-        ":dupword - duplicate word\n"
-        ":join - join lines\n"
-        ":noblank - remove blank lines\n"
-        ":wordcount - word count\n"
-        ":dupselect - duplicate selection\n"
-        ":countsel - count selection\n"
-        ":timestamp - insert timestamp\n"
-        ":rand - insert random number\n"
-        ":basename - insert basename\n"
-        ":dirname - insert dirname\n"
-        ":openrecent - open recent file\n"
-        ":lowerall - lowercase whole buffer\n"
-        ":upperall - uppercase whole buffer\n"
-        ":swapcase - toggle case\n"
-        ":trimleading - remove leading spaces\n"
-        ":insertuser - insert username\n"
-        ":inserthost - insert hostname\n"
-        ":linecount - show line count\n"
-        ":transpose - swap line with next\n"
-        ":insertfile [file] - insert another file\n"
-        ":readonly - toggle read-only\n"
-        ":preview - open file in browser\n"
-        ":serve - start HTTP server\n"
-        ":runpy - run Python file\n"
-        ":lintpy - lint Python file\n"
-        ":buildc - compile C file\n"
-        ":runc - run compiled C\n"
-        ":record NAME - start recording macro\n"
-        ":stop - stop recording\n"
-        ":play NAME - play macro\n"
-        ":pipe CMD - pipe buffer through command\n"
-        ":newwin - open new window\n"
-        ":/pattern - search\n"
-        ":!cmd - run shell command\n"
-        ":goto N - jump to line N\n"
-        ":replace A B - replace first A with B\n"
-        ":date - insert current date\n"
-        ":visit - open Linuxksdteam.site\n"
-        ":about - about dialog\n"
-        ":help - show this help";
-    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
-        GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
-    gtk_dialog_run(GTK_DIALOG(d));
-    gtk_widget_destroy(d);
+    gchar *dir = g_path_get_dirname(program_path);
+    gchar *path = g_build_filename(dir, "help.txt", NULL);
+    g_free(dir);
+    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+        open_file(app, path);
+    } else {
+        show_error(app, "Help file not found");
+    }
+    g_free(path);
 }
 
 static void show_about(VenApp *app) {
@@ -1462,21 +1395,55 @@ int main(int argc, char *argv[]) {
     gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_ICONS);
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
 
+    GtkWidget *tool_bar = gtk_toolbar_new();
+    gtk_toolbar_set_style(GTK_TOOLBAR(tool_bar), GTK_TOOLBAR_ICONS);
+    gtk_box_pack_start(GTK_BOX(vbox), tool_bar, FALSE, FALSE, 0);
+
+    GtkWidget *cmd_bar = gtk_toolbar_new();
+    gtk_toolbar_set_style(GTK_TOOLBAR(cmd_bar), GTK_TOOLBAR_ICONS);
+    gtk_box_pack_start(GTK_BOX(vbox), cmd_bar, FALSE, FALSE, 0);
+
     GtkToolItem *tb_new = gtk_tool_button_new(NULL, "New");
     gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_new), "document-new");
     GtkToolItem *tb_open = gtk_tool_button_new(NULL, "Open");
     gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_open), "document-open");
     GtkToolItem *tb_save = gtk_tool_button_new(NULL, "Save");
     gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_save), "document-save");
-    GtkToolItem *tb_run = gtk_tool_button_new(NULL, "Run");
-    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_run), "system-run");
     GtkToolItem *tb_quit = gtk_tool_button_new(NULL, "Quit");
     gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_quit), "application-exit");
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_new, -1);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_open, -1);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_save, -1);
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_run, -1);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_quit, -1);
+
+    GtkToolItem *tb_cut = gtk_tool_button_new(NULL, "Cut");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_cut), "edit-cut");
+    GtkToolItem *tb_copy = gtk_tool_button_new(NULL, "Copy");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_copy), "edit-copy");
+    GtkToolItem *tb_paste = gtk_tool_button_new(NULL, "Paste");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_paste), "edit-paste");
+    GtkToolItem *tb_comment = gtk_tool_button_new(NULL, "Comment");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_comment), "format-text-bold");
+    GtkToolItem *tb_uncomment = gtk_tool_button_new(NULL, "Uncomment");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_uncomment), "format-text-italic");
+    gtk_toolbar_insert(GTK_TOOLBAR(tool_bar), tb_cut, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(tool_bar), tb_copy, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(tool_bar), tb_paste, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(tool_bar), tb_comment, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(tool_bar), tb_uncomment, -1);
+
+    GtkToolItem *tb_run = gtk_tool_button_new(NULL, "Run");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_run), "system-run");
+    GtkToolItem *tb_search = gtk_tool_button_new(NULL, "Search");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_search), "edit-find");
+    GtkToolItem *tb_goto = gtk_tool_button_new(NULL, "Goto");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_goto), "go-jump");
+    GtkToolItem *tb_help = gtk_tool_button_new(NULL, "Help");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_help), "help-browser");
+    gtk_toolbar_insert(GTK_TOOLBAR(cmd_bar), tb_run, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(cmd_bar), tb_search, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(cmd_bar), tb_goto, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(cmd_bar), tb_help, -1);
 
     GtkWidget *filemenu = gtk_menu_new();
     GtkWidget *file = gtk_menu_item_new_with_mnemonic("_File");
@@ -1671,8 +1638,16 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(tb_new), "app", &app);
     g_object_set_data(G_OBJECT(tb_open), "app", &app);
     g_object_set_data(G_OBJECT(tb_save), "app", &app);
-    g_object_set_data(G_OBJECT(tb_run), "app", &app);
     g_object_set_data(G_OBJECT(tb_quit), "app", &app);
+    g_object_set_data(G_OBJECT(tb_cut), "app", &app);
+    g_object_set_data(G_OBJECT(tb_copy), "app", &app);
+    g_object_set_data(G_OBJECT(tb_paste), "app", &app);
+    g_object_set_data(G_OBJECT(tb_comment), "app", &app);
+    g_object_set_data(G_OBJECT(tb_uncomment), "app", &app);
+    g_object_set_data(G_OBJECT(tb_run), "app", &app);
+    g_object_set_data(G_OBJECT(tb_search), "app", &app);
+    g_object_set_data(G_OBJECT(tb_goto), "app", &app);
+    g_object_set_data(G_OBJECT(tb_help), "app", &app);
     g_object_set_data(G_OBJECT(cui), "app", &app);
     g_object_set_data(G_OBJECT(copyi), "app", &app);
     g_object_set_data(G_OBJECT(pastei), "app", &app);
@@ -1741,8 +1716,16 @@ int main(int argc, char *argv[]) {
     g_signal_connect(tb_new, "clicked", G_CALLBACK(on_menu_activate), "new");
     g_signal_connect(tb_open, "clicked", G_CALLBACK(on_menu_activate), "o");
     g_signal_connect(tb_save, "clicked", G_CALLBACK(on_menu_activate), "w");
-    g_signal_connect(tb_run, "clicked", G_CALLBACK(run_command_dialog), &app);
     g_signal_connect(tb_quit, "clicked", G_CALLBACK(on_menu_activate), "q");
+    g_signal_connect(tb_cut, "clicked", G_CALLBACK(on_menu_activate), "cut");
+    g_signal_connect(tb_copy, "clicked", G_CALLBACK(on_menu_activate), "copy");
+    g_signal_connect(tb_paste, "clicked", G_CALLBACK(on_menu_activate), "paste");
+    g_signal_connect(tb_comment, "clicked", G_CALLBACK(on_menu_activate), "comment");
+    g_signal_connect(tb_uncomment, "clicked", G_CALLBACK(on_menu_activate), "uncomment");
+    g_signal_connect(tb_run, "clicked", G_CALLBACK(run_command_dialog), &app);
+    g_signal_connect(tb_search, "clicked", G_CALLBACK(search_dialog), &app);
+    g_signal_connect(tb_goto, "clicked", G_CALLBACK(goto_line_dialog), &app);
+    g_signal_connect(tb_help, "clicked", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(cui, "activate", G_CALLBACK(on_menu_activate), "cut");
     g_signal_connect(copyi, "activate", G_CALLBACK(on_menu_activate), "copy");
     g_signal_connect(pastei, "activate", G_CALLBACK(on_menu_activate), "paste");

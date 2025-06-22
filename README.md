@@ -8,10 +8,10 @@ Project website: <https://linuxksdteam.site>
 
 ## Features
 
-- GTK3 based window with a text editing area
+- GTK3 based window with a VS Code–like layout and text editing area
 - Insert mode and command mode similar to Vim
 - Status bar showing the current mode and messages
-- Toolbar with quick access buttons
+- Toolbars for file, tool, and command actions
 - Built-in terminal for command output
 - Multiple windows via the `:newwin` command
 - Syntax highlighting using GtkSourceView
@@ -19,7 +19,7 @@ Project website: <https://linuxksdteam.site>
 - Basic commands:
   - `:w [file]` to save the current buffer
   - `:q` to quit the editor
-  - `:help` to show a help dialog
+  - `:help` to open the help file in the editor
   - `:o [file]` to open a file
   - `:wq` to save and quit
   - `:new` to create a new buffer
@@ -114,5 +114,7 @@ Launch the editor with:
 
 Press `Esc` to enter command mode and type one of the commands above.
 Use `Esc` again to return to insert mode.
+
+The built-in help file can be viewed at any time with `:help`.
 
 This project is a prototype and welcomes contributions.

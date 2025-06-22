@@ -1,0 +1,15 @@
+VEN Help
+
+Use Vim-like commands prefixed with ':' in command mode.
+Some common commands:
+:w [file]       Save file
+:q              Quit editor
+:o [file]       Open file
+:wq             Save and quit
+:new            New file
+:cut            Cut selection
+:copy           Copy selection
+:paste          Paste clipboard
+:help           Show this help
+
+See README.md for a full list of commands.
