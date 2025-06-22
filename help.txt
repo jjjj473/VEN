@@ -1,19 +1,16 @@
-VEN Web Editor Commands
+VEN Web Editor Help
 
-:w [file]    Save the buffer. Optionally provide a file name.
-:q           Close the browser window (prompts for confirmation).
-:o [file]    Open a local file.
-:new         Clear the editor buffer.
-:help        Show this help text.
-:goto N      Jump to line N.
-:replace A B Replace text A with B globally.
-:undo        Undo last change.
-:redo        Redo last undone change.
-:cut         Cut selected text to clipboard.
-:copy        Copy selected text to clipboard.
-:paste       Paste clipboard at cursor.
-:find TEXT   Search for TEXT and select next occurrence.
-:selectall   Select the entire buffer.
-:fontsize +/- Increase or decrease editor font size.
-:numbers     Toggle line numbers.
-:preview     Open buffer contents in a new tab.
+Use the toolbar buttons to perform common tasks:
+- **New**: clear the editor
+- **Open**: load a file from your computer
+- **Save**: save the current buffer as a file
+- **Undo/Redo**: revert or reapply changes
+- **Cut/Copy/Paste**: manipulate selected text via the clipboard
+- **Find**: search for text in the document
+- **Replace**: find text and replace it globally
+- **Goto**: jump to a specific line number
+- **Select All**: select the entire document
+- **A+ / A-**: adjust the editor font size
+- **#**: toggle line numbers
+- **Help**: show this help dialog
+- **Preview**: open the buffer contents in a new tab
