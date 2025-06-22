@@ -1,0 +1,20 @@
+VEN Web Editor Help
+
+Use the toolbar buttons to perform common tasks:
+- **New**: clear the editor
+- **Open**: load a file from your computer
+- **Save**: save the current buffer as a file
+- **Undo/Redo**: revert or reapply changes
+- **Cut/Copy/Paste**: manipulate selected text via the clipboard
+- **Find**: search for text in the document
+- **Replace**: find text and replace it globally
+- **Goto**: jump to a specific line number
+- **Select All**: select the entire document
+- **A+ / A-**: adjust the editor font size
+- **#**: toggle line numbers
+- **Wrap**: toggle word wrapping
+- **Theme**: switch between light and dark themes
+- **Stats**: view line, word and character counts
+- **Preview**: open the buffer contents in a new tab
+- **About**: open an information dialog about VEN
+- **Help**: show this help dialog

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VEN Web Editor</title>
+<link rel="stylesheet" href="https://unpkg.com/codemirror@5/lib/codemirror.css">
+<link rel="stylesheet" href="https://unpkg.com/codemirror@5/theme/monokai.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="toolbar">
+<button id="newBtn">New</button>
+<button id="openBtn">Open</button>
+<button id="saveBtn">Save</button>
+<button id="undoBtn">Undo</button>
+<button id="redoBtn">Redo</button>
+<button id="cutBtn">Cut</button>
+<button id="copyBtn">Copy</button>
+<button id="pasteBtn">Paste</button>
+<button id="findBtn">Find</button>
+<button id="replaceBtn">Replace</button>
+<button id="gotoBtn">Goto</button>
+<button id="selectAllBtn">Select All</button>
+<button id="fontIncBtn">A+</button>
+<button id="fontDecBtn">A-</button>
+<button id="numbersBtn">#</button>
+<button id="helpBtn">Help</button>
+<button id="previewBtn">Preview</button>
+<input type="file" id="fileInput" style="display:none"/>
+</div>
+<div id="advToolbar">
+<button id="wrapBtn">Wrap</button>
+<button id="themeBtn">Theme</button>
+<button id="statsBtn">Stats</button>
+<button id="aboutBtn">About</button>
+</div>
+<div id="editor"></div>
+<div id="status"></div>
+<div id="help" class="hidden">
+<pre id="helpText"></pre>
+<button id="closeHelp">Close</button>
+</div>
+<script src="https://unpkg.com/codemirror@5/lib/codemirror.js"></script>
+<script src="https://unpkg.com/codemirror@5/addon/search/searchcursor.js"></script>
+<script src="https://unpkg.com/codemirror@5/mode/javascript/javascript.js"></script>
+<script src="https://unpkg.com/codemirror@5/mode/xml/xml.js"></script>
+<script src="https://unpkg.com/codemirror@5/mode/css/css.js"></script>
+<script src="ven.js"></script>
+</body>
+</html>

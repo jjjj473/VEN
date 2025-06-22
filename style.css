@@ -1,0 +1,61 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+#toolbar {
+    background: #333;
+    padding: 4px;
+    display: flex;
+    flex-wrap: wrap;
+}
+#advToolbar {
+    background: #222;
+    padding: 4px;
+    display: flex;
+    flex-wrap: wrap;
+}
+#advToolbar button {
+    margin: 2px;
+    color: #fff;
+    background: #666;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+#status {
+    background: #eee;
+    padding: 2px 6px;
+    font-size: 12px;
+}
+#toolbar button {
+    margin: 2px;
+    color: #fff;
+    background: #555;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+#editor {
+    flex: 1;
+}
+.CodeMirror {
+    height: 100%;
+}
+#help {
+    position: fixed;
+    top: 10%;
+    left: 10%;
+    right: 10%;
+    bottom: 10%;
+    background: white;
+    border: 1px solid #333;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    padding: 10px;
+    overflow: auto;
+}
+.hidden {
+    display: none;
+}
