@@ -26,6 +26,16 @@ Project website: <https://linuxksdteam.site>
   - `:date` to insert the current date and time
   - `:visit` to open [Linuxksdteam.site](https://linuxksdteam.site)
   - `:about` to see application info
+  - `:dup` to duplicate the current line
+  - `:del` to delete the current line
+  - `:upper`/`:lower` to change case of the selection
+  - `:trim` to trim trailing whitespace
+  - `:insertpath` to insert the current file path
+  - `:stats` to show line, word, and character counts
+  - `:tabs2spaces` and `:spaces2tabs` to convert whitespace
+  - `:wrap` to toggle text wrapping
+  - `:todo` to insert a TODO label
+  - `:addlnum` to prefix lines with numbers
 
 ## Requirements
 

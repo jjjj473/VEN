@@ -12,6 +12,7 @@ typedef struct {
     guint status_ctx;
     gchar *current_file;
     gboolean command_mode;
+    gboolean wrap;
 } VenApp;
 
 static void update_status(VenApp *app, const gchar *msg) {
@@ -25,6 +26,18 @@ static void update_status(VenApp *app, const gchar *msg) {
 
 static void open_file_dialog(VenApp *app);
 static void save_file_dialog(VenApp *app);
+static void duplicate_line(VenApp *app);
+static void delete_line(VenApp *app);
+static void to_upper(VenApp *app);
+static void to_lower(VenApp *app);
+static void trim_trailing(VenApp *app);
+static void insert_path(VenApp *app);
+static void show_stats(VenApp *app);
+static void tabs_to_spaces(VenApp *app);
+static void spaces_to_tabs(VenApp *app);
+static void toggle_wrap(VenApp *app);
+static void insert_todo(VenApp *app);
+static void add_line_numbers(VenApp *app);
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
@@ -103,6 +116,18 @@ static void show_help(VenApp *app) {
         ":cut - cut selection\n"
         ":copy - copy selection\n"
         ":paste - paste clipboard\n"
+        ":dup - duplicate current line\n"
+        ":del - delete current line\n"
+        ":upper - selection to upper case\n"
+        ":lower - selection to lower case\n"
+        ":trim - trim trailing whitespace\n"
+        ":insertpath - insert file path\n"
+        ":stats - show buffer statistics\n"
+        ":tabs2spaces - convert tabs to spaces\n"
+        ":spaces2tabs - convert spaces to tabs\n"
+        ":wrap - toggle wrapping\n"
+        ":todo - insert TODO label\n"
+        ":addlnum - add line numbers\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
         ":goto N - jump to line N\n"
@@ -228,6 +253,168 @@ static void open_website(VenApp *app) {
     g_app_info_launch_default_for_uri("https://linuxksdteam.site", NULL, NULL);
 }
 
+static void duplicate_line(VenApp *app) {
+    GtkTextIter iter, start, end;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    start = iter;
+    gtk_text_iter_set_line_offset(&start, 0);
+    end = start;
+    if (!gtk_text_iter_ends_line(&end))
+        gtk_text_iter_forward_to_line_end(&end);
+    gchar *line = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gtk_text_buffer_insert(app->buffer, &end, "\n", 1);
+    gtk_text_buffer_insert(app->buffer, &end, line, -1);
+    g_free(line);
+}
+
+static void delete_line(VenApp *app) {
+    GtkTextIter iter, start, end;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    start = iter;
+    gtk_text_iter_set_line_offset(&start, 0);
+    end = start;
+    if (!gtk_text_iter_ends_line(&end))
+        gtk_text_iter_forward_to_line_end(&end);
+    gtk_text_iter_forward_char(&end);
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+}
+
+static void to_upper(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *up = g_utf8_strup(text, -1);
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, up, -1);
+    g_free(text);
+    g_free(up);
+}
+
+static void to_lower(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar *low = g_utf8_strdown(text, -1);
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, low, -1);
+    g_free(text);
+    g_free(low);
+}
+
+static void trim_trailing(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        gchar *tmp = g_strchomp(lines[i]);
+        g_string_append(out, tmp);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_set_text(app->buffer, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void insert_path(VenApp *app) {
+    if (!app->current_file)
+        return;
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, app->current_file, -1);
+}
+
+static void show_stats(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    int chars = g_utf8_strlen(text, -1);
+    int lines = 1;
+    for (const gchar *p = text; *p; p++)
+        if (*p == '\n')
+            lines++;
+    gchar **words = g_strsplit_set(text, " \t\n", -1);
+    int words_count = 0;
+    for (; words[words_count]; words_count++)
+        ;
+    gchar *msg = g_strdup_printf("Lines: %d\nWords: %d\nChars: %d", lines,
+        words_count ? words_count - 1 : 0, chars);
+    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    g_free(msg);
+    g_strfreev(words);
+    g_free(text);
+}
+
+static void tabs_to_spaces(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **parts = g_strsplit(text, "\t", -1);
+    gchar *joined = g_strjoinv("    ", parts);
+    gtk_text_buffer_set_text(app->buffer, joined, -1);
+    g_free(joined);
+    g_strfreev(parts);
+    g_free(text);
+}
+
+static void spaces_to_tabs(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    GRegex *rx = g_regex_new(" {4}", 0, 0, NULL);
+    gchar *repl = g_regex_replace(rx, text, -1, 0, "\t", 0, NULL);
+    gtk_text_buffer_set_text(app->buffer, repl, -1);
+    g_free(repl);
+    g_regex_unref(rx);
+    g_free(text);
+}
+
+static void toggle_wrap(VenApp *app) {
+    if (app->wrap) {
+        gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app->textview), GTK_WRAP_NONE);
+        app->wrap = FALSE;
+    } else {
+        gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app->textview), GTK_WRAP_WORD);
+        app->wrap = TRUE;
+    }
+}
+
+static void insert_todo(VenApp *app) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_iter_set_line_offset(&iter, 0);
+    gtk_text_buffer_insert(app->buffer, &iter, "TODO: ", -1);
+}
+
+static void add_line_numbers(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        g_string_append_printf(out, "%d: %s", i + 1, lines[i]);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_set_text(app->buffer, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
 static void goto_line_dialog(GtkWidget *widget, gpointer data) {
     VenApp *app = data;
     GtkWidget *d = gtk_dialog_new_with_buttons("Go To Line", GTK_WINDOW(app->window),
@@ -302,6 +489,30 @@ static void process_command(VenApp *app, const gchar *cmd) {
         copy_selection(app);
     } else if (g_strcmp0(cmd, "paste") == 0 || g_strcmp0(cmd, ":paste") == 0) {
         paste_clipboard(app);
+    } else if (g_strcmp0(cmd, "dup") == 0 || g_strcmp0(cmd, ":dup") == 0) {
+        duplicate_line(app);
+    } else if (g_strcmp0(cmd, "del") == 0 || g_strcmp0(cmd, ":del") == 0) {
+        delete_line(app);
+    } else if (g_strcmp0(cmd, "upper") == 0 || g_strcmp0(cmd, ":upper") == 0) {
+        to_upper(app);
+    } else if (g_strcmp0(cmd, "lower") == 0 || g_strcmp0(cmd, ":lower") == 0) {
+        to_lower(app);
+    } else if (g_strcmp0(cmd, "trim") == 0 || g_strcmp0(cmd, ":trim") == 0) {
+        trim_trailing(app);
+    } else if (g_strcmp0(cmd, "insertpath") == 0 || g_strcmp0(cmd, ":insertpath") == 0) {
+        insert_path(app);
+    } else if (g_strcmp0(cmd, "stats") == 0 || g_strcmp0(cmd, ":stats") == 0) {
+        show_stats(app);
+    } else if (g_strcmp0(cmd, "tabs2spaces") == 0 || g_strcmp0(cmd, ":tabs2spaces") == 0) {
+        tabs_to_spaces(app);
+    } else if (g_strcmp0(cmd, "spaces2tabs") == 0 || g_strcmp0(cmd, ":spaces2tabs") == 0) {
+        spaces_to_tabs(app);
+    } else if (g_strcmp0(cmd, "wrap") == 0 || g_strcmp0(cmd, ":wrap") == 0) {
+        toggle_wrap(app);
+    } else if (g_strcmp0(cmd, "todo") == 0 || g_strcmp0(cmd, ":todo") == 0) {
+        insert_todo(app);
+    } else if (g_strcmp0(cmd, "addlnum") == 0 || g_strcmp0(cmd, ":addlnum") == 0) {
+        add_line_numbers(app);
     } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
         const gchar *arg = strstr(cmd, " ");
         if (arg)
@@ -421,11 +632,31 @@ int main(int argc, char *argv[]) {
     GtkWidget *replacei = gtk_menu_item_new_with_label("Replace");
     GtkWidget *datei = gtk_menu_item_new_with_label("Insert Date");
     GtkWidget *visiti = gtk_menu_item_new_with_label("Visit Website");
+    GtkWidget *dupi = gtk_menu_item_new_with_label("Duplicate Line");
+    GtkWidget *deli = gtk_menu_item_new_with_label("Delete Line");
+    GtkWidget *upperi = gtk_menu_item_new_with_label("Uppercase");
+    GtkWidget *loweri = gtk_menu_item_new_with_label("Lowercase");
+    GtkWidget *trimi = gtk_menu_item_new_with_label("Trim Whitespace");
+    GtkWidget *pathi = gtk_menu_item_new_with_label("Insert Path");
+    GtkWidget *statsi = gtk_menu_item_new_with_label("Statistics");
+    GtkWidget *t2si = gtk_menu_item_new_with_label("Tabs->Spaces");
+    GtkWidget *s2ti = gtk_menu_item_new_with_label("Spaces->Tabs");
+    GtkWidget *wrapi = gtk_menu_item_new_with_label("Toggle Wrap");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), datei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), visiti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), dupi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), deli);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), upperi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), loweri);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), trimi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), pathi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), statsi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), t2si);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), s2ti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), wrapi);
 
     GtkWidget *helpmenu = gtk_menu_new();
     GtkWidget *help = gtk_menu_item_new_with_mnemonic("_Help");
@@ -439,6 +670,8 @@ int main(int argc, char *argv[]) {
 
     app.textview = gtk_text_view_new();
     app.buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(app.textview));
+    app.wrap = TRUE;
+    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app.textview), GTK_WRAP_WORD);
     GtkWidget *scroller = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scroller), app.textview);
     gtk_box_pack_start(GTK_BOX(vbox), scroller, TRUE, TRUE, 0);
@@ -468,6 +701,16 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(replacei), "app", &app);
     g_object_set_data(G_OBJECT(datei), "app", &app);
     g_object_set_data(G_OBJECT(visiti), "app", &app);
+    g_object_set_data(G_OBJECT(dupi), "app", &app);
+    g_object_set_data(G_OBJECT(deli), "app", &app);
+    g_object_set_data(G_OBJECT(upperi), "app", &app);
+    g_object_set_data(G_OBJECT(loweri), "app", &app);
+    g_object_set_data(G_OBJECT(trimi), "app", &app);
+    g_object_set_data(G_OBJECT(pathi), "app", &app);
+    g_object_set_data(G_OBJECT(statsi), "app", &app);
+    g_object_set_data(G_OBJECT(t2si), "app", &app);
+    g_object_set_data(G_OBJECT(s2ti), "app", &app);
+    g_object_set_data(G_OBJECT(wrapi), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -484,6 +727,16 @@ int main(int argc, char *argv[]) {
     g_signal_connect(replacei, "activate", G_CALLBACK(replace_dialog), &app);
     g_signal_connect(datei, "activate", G_CALLBACK(on_menu_activate), "date");
     g_signal_connect(visiti, "activate", G_CALLBACK(on_menu_activate), "visit");
+    g_signal_connect(dupi, "activate", G_CALLBACK(on_menu_activate), "dup");
+    g_signal_connect(deli, "activate", G_CALLBACK(on_menu_activate), "del");
+    g_signal_connect(upperi, "activate", G_CALLBACK(on_menu_activate), "upper");
+    g_signal_connect(loweri, "activate", G_CALLBACK(on_menu_activate), "lower");
+    g_signal_connect(trimi, "activate", G_CALLBACK(on_menu_activate), "trim");
+    g_signal_connect(pathi, "activate", G_CALLBACK(on_menu_activate), "insertpath");
+    g_signal_connect(statsi, "activate", G_CALLBACK(on_menu_activate), "stats");
+    g_signal_connect(t2si, "activate", G_CALLBACK(on_menu_activate), "tabs2spaces");
+    g_signal_connect(s2ti, "activate", G_CALLBACK(on_menu_activate), "spaces2tabs");
+    g_signal_connect(wrapi, "activate", G_CALLBACK(on_menu_activate), "wrap");
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
 
