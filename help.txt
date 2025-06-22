@@ -1,15 +1,9 @@
-VEN Help
+VEN Web Editor Commands
 
-Use Vim-like commands prefixed with ':' in command mode.
-Some common commands:
-:w [file]       Save file
-:q              Quit editor
-:o [file]       Open file
-:wq             Save and quit
-:new            New file
-:cut            Cut selection
-:copy           Copy selection
-:paste          Paste clipboard
-:help           Show this help
-
-See README.md for a full list of commands.
+:w [file]    Save the buffer. Optionally provide a file name.
+:q           Close the browser window (prompts for confirmation).
+:o [file]    Open a local file.
+:new         Clear the editor buffer.
+:help        Show this help text.
+:goto N      Jump to line N.
+:replace A B Replace text A with B globally.
