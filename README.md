@@ -11,6 +11,8 @@ Project website: <https://linuxksdteam.site>
 - GTK3 based window with a text editing area
 - Insert mode and command mode similar to Vim
 - Status bar showing the current mode and messages
+- Toolbar with quick access buttons
+- Built-in terminal for command output
 - Multiple windows via the `:newwin` command
 - Syntax highlighting using GtkSourceView
 - Built-in plugins for web, Python, and C development

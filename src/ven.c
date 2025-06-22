@@ -20,7 +20,8 @@ typedef struct {
     gboolean recording;
     gchar *recording_name;
     GtkWidget *paned;
-    GtkWidget *view2;
+    GtkWidget *term_view;
+    GtkTextBuffer *term_buffer;
 } VenApp;
 
 static gchar *last_opened = NULL;
@@ -342,6 +343,11 @@ static void run_shell_command(VenApp *app, const gchar *cmd) {
     gboolean ok = g_spawn_command_line_sync(cmd, &output, NULL, NULL, &err);
     if (!ok) {
         show_error(app, err ? err->message : "Failed to run command");
+    } else if (app->term_buffer) {
+        GtkTextIter end;
+        gtk_text_buffer_get_end_iter(app->term_buffer, &end);
+        gtk_text_buffer_insert(app->term_buffer, &end, output ? output : "", -1);
+        gtk_text_buffer_insert(app->term_buffer, &end, "\n", -1);
     } else {
         GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window),
             GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
@@ -1452,6 +1458,26 @@ int main(int argc, char *argv[]) {
     GtkWidget *menubar = gtk_menu_bar_new();
     gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 0);
 
+    GtkWidget *toolbar = gtk_toolbar_new();
+    gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_ICONS);
+    gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+
+    GtkToolItem *tb_new = gtk_tool_button_new(NULL, "New");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_new), "document-new");
+    GtkToolItem *tb_open = gtk_tool_button_new(NULL, "Open");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_open), "document-open");
+    GtkToolItem *tb_save = gtk_tool_button_new(NULL, "Save");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_save), "document-save");
+    GtkToolItem *tb_run = gtk_tool_button_new(NULL, "Run");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_run), "system-run");
+    GtkToolItem *tb_quit = gtk_tool_button_new(NULL, "Quit");
+    gtk_tool_button_set_icon_name(GTK_TOOL_BUTTON(tb_quit), "application-exit");
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_new, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_open, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_save, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_run, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tb_quit, -1);
+
     GtkWidget *filemenu = gtk_menu_new();
     GtkWidget *file = gtk_menu_item_new_with_mnemonic("_File");
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), filemenu);
@@ -1604,6 +1630,9 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), helpi);
     gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), abouti);
 
+    app.paned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
+    gtk_box_pack_start(GTK_BOX(vbox), app.paned, TRUE, TRUE, 0);
+
     app.textview = GTK_WIDGET(gtk_source_view_new());
     app.buffer = GTK_TEXT_BUFFER(gtk_text_view_get_buffer(GTK_TEXT_VIEW(app.textview)));
     app.wrap = TRUE;
@@ -1611,7 +1640,16 @@ int main(int argc, char *argv[]) {
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app.textview), GTK_WRAP_WORD);
     GtkWidget *scroller = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scroller), app.textview);
-    gtk_box_pack_start(GTK_BOX(vbox), scroller, TRUE, TRUE, 0);
+    gtk_paned_pack1(GTK_PANED(app.paned), scroller, TRUE, FALSE);
+
+    app.term_view = gtk_text_view_new();
+    gtk_text_view_set_editable(GTK_TEXT_VIEW(app.term_view), FALSE);
+    app.term_buffer = gtk_text_buffer_new(NULL);
+    gtk_text_view_set_buffer(GTK_TEXT_VIEW(app.term_view), app.term_buffer);
+    GtkWidget *tscroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_widget_set_size_request(tscroll, -1, 150);
+    gtk_container_add(GTK_CONTAINER(tscroll), app.term_view);
+    gtk_paned_pack2(GTK_PANED(app.paned), tscroll, FALSE, FALSE);
 
     app.command_entry = gtk_entry_new();
     gtk_box_pack_end(GTK_BOX(vbox), app.command_entry, FALSE, FALSE, 0);
@@ -1630,6 +1668,11 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(savei), "app", &app);
     g_object_set_data(G_OBJECT(saveasi), "app", &app);
     g_object_set_data(G_OBJECT(quiti), "app", &app);
+    g_object_set_data(G_OBJECT(tb_new), "app", &app);
+    g_object_set_data(G_OBJECT(tb_open), "app", &app);
+    g_object_set_data(G_OBJECT(tb_save), "app", &app);
+    g_object_set_data(G_OBJECT(tb_run), "app", &app);
+    g_object_set_data(G_OBJECT(tb_quit), "app", &app);
     g_object_set_data(G_OBJECT(cui), "app", &app);
     g_object_set_data(G_OBJECT(copyi), "app", &app);
     g_object_set_data(G_OBJECT(pastei), "app", &app);
@@ -1695,6 +1738,11 @@ int main(int argc, char *argv[]) {
     g_signal_connect(savei, "activate", G_CALLBACK(on_menu_activate), "w");
     g_signal_connect(saveasi, "activate", G_CALLBACK(on_menu_activate), ":w");
     g_signal_connect(quiti, "activate", G_CALLBACK(on_menu_activate), "q");
+    g_signal_connect(tb_new, "clicked", G_CALLBACK(on_menu_activate), "new");
+    g_signal_connect(tb_open, "clicked", G_CALLBACK(on_menu_activate), "o");
+    g_signal_connect(tb_save, "clicked", G_CALLBACK(on_menu_activate), "w");
+    g_signal_connect(tb_run, "clicked", G_CALLBACK(run_command_dialog), &app);
+    g_signal_connect(tb_quit, "clicked", G_CALLBACK(on_menu_activate), "q");
     g_signal_connect(cui, "activate", G_CALLBACK(on_menu_activate), "cut");
     g_signal_connect(copyi, "activate", G_CALLBACK(on_menu_activate), "copy");
     g_signal_connect(pastei, "activate", G_CALLBACK(on_menu_activate), "paste");
