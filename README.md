@@ -15,8 +15,11 @@ with a simple graphical interface.
   - `:help` to show a help dialog
   - `:o [file]` to open a file
   - `:wq` to save and quit
+  - `:new` to create a new buffer
+  - `:cut`, `:copy`, `:paste` for clipboard actions
   - `:/pattern` to search text
   - `:!cmd` to run a shell command
+  - `:about` to see application info
 
 ## Requirements
 
