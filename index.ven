@@ -1,16 +1,16 @@
-<html>
 <?VEN
-# set a page title
-title = "Advanced VEN"
-print(include("header.ven"))
+set title "VEN in C"
 ?>
+<html>
+<?VEN include header.ven ?>
 <body>
 <ul>
 <?VEN
-for i in range(5):
-    echo(f"<li>Item {i}</li>\n")
+for i 0 4
+    echo "<li>Item ${i}</li>\n"
+endfor
 ?>
 </ul>
-<?VEN print(include("footer.ven")) ?>
+<?VEN include footer.ven ?>
 </body>
 </html>

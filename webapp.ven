@@ -1,15 +1,15 @@
 <?VEN
-# Example page with CSS and JavaScript
-title = "VEN Web App"
-bgcolor = "#fafafa"
-layout("layout.ven")
-start_block("content")
+set title "VEN Web App"
+set bgcolor "#fafafa"
 ?>
-<h1>VEN Web App</h1>
+<html>
+<?VEN include header.ven ?>
+<body>
 <style>
 body { background-color: <?VEN= bgcolor ?>; font-family: Arial; }
 button { padding: 8px 16px; }
 </style>
+<h1>VEN Web App</h1>
 <button id="btn">Click me</button>
 <p id="count">0</p>
 <script>
@@ -19,5 +19,6 @@ document.getElementById('btn').addEventListener('click', () => {
   document.getElementById('count').textContent = count;
 });
 </script>
-<?VEN end_block() ?>
-
+<?VEN include footer.ven ?>
+</body>
+</html>

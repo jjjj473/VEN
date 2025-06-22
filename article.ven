@@ -1,16 +1,17 @@
 <?VEN
-# Set page title and use layout
-title = "Articles"
-layout("layout.ven")
-start_block("content")
+set title "Articles"
 ?>
+<html>
+<?VEN include header.ven ?>
+<body>
 <h1>Article List</h1>
 <ul>
 <?VEN
-posts = ["Alpha", "Beta", "Gamma"]
-for p in posts:
-    echo(f"<li>{escape(p)}</li>\n")
+for i 0 2
+    echo "<li>Post ${i}</li>\n"
+endfor
 ?>
 </ul>
-<?VEN end_block() ?>
-
+<?VEN include footer.ven ?>
+</body>
+</html>

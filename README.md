@@ -1,48 +1,41 @@
 # VEN
 
-VEN is a minimal server-side scripting language inspired by PHP. It allows you to mix HTML with VEN code blocks.
+VEN is a tiny server-side scripting language with a custom syntax inspired by PHP. The interpreter is implemented in C and processes HTML files with `<?VEN ... ?>` tags.
 
-## Running a .ven file
+## Building
 
-Use the `ven.py` interpreter to render a `.ven` file:
-
-```bash
-python ven.py index.ven
-```
-
-More advanced pages can specify a layout and define content blocks:
+Compile the interpreter with gcc:
 
 ```bash
-python ven.py article.ven
+gcc -o ven ven.c
 ```
 
-To experiment in a browser, start the built-in server:
+## Running a `.ven` file
+
+Render a page by passing it to the `ven` executable:
 
 ```bash
-python ven.py --serve --port 8000
+./ven index.ven
 ```
-
-Then open `http://localhost:8000/webapp.ven`.
 
 ## Syntax
 
-Code blocks are wrapped in `<?VEN ... ?>` tags. If the tag starts with `<?VEN=` the expression is evaluated and inserted into the output. Otherwise the code is executed and anything printed becomes part of the result. A few helper functions are available inside each block:
+Blocks are delimited by `<?VEN` and `?>`. If the tag begins with `<?VEN=` the interpreter inserts the value of a variable. Normal blocks support a few simple commands:
 
-- `echo(*args)` prints text without adding spaces or newlines
-- `include(path)` renders another `.ven` file relative to the current one
-- `escape(text)` escapes HTML special characters
-- `layout(path)` sets a base template for the current page
-- `start_block(name)` and `end_block()` capture output for a named block
-- `yield_block(name)` inserts a captured block
+- `set NAME VALUE` &ndash; assign a variable
+- `echo TEXT` &ndash; output text with `${var}` substitutions
+- `include FILE` &ndash; include another `.ven` file
+- `for VAR START END` ... `endfor` &ndash; loop over a range of numbers
+
+The variable `time` is predefined with the current timestamp.
 
 ```html
-<p>The time is <?VEN= time.strftime("%H:%M:%S") ?></p>
+<p>Current time: <?VEN= time ?></p>
 <?VEN
-for i in range(3):
-    print(f"<p>{i}</p>")
+for i 0 2
+    echo "<p>${i}</p>"
+endfor
 ?>
 ```
 
-See `index.ven` for a complete example that includes other files.
-`article.ven` demonstrates layouts and content blocks. `webapp.ven` shows
-how VEN pages can embed CSS and JavaScript.
+See `index.ven` for includes and loops. `webapp.ven` demonstrates embedding CSS and JavaScript.

@@ -1,3 +1,3 @@
 <footer>
-    <p>Generated at <?VEN= time.strftime("%Y-%m-%d %H:%M:%S") ?></p>
+    <p>Generated at <?VEN= time ?></p>
 </footer>
