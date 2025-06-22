@@ -94,6 +94,65 @@ static void start_recording(VenApp *app, const gchar *name);
 static void stop_recording(VenApp *app);
 static void play_macro(VenApp *app, const gchar *name);
 static void set_language_from_filename(VenApp *app, const gchar *fname);
+static void preview_file(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *uri = g_filename_to_uri(app->current_file, NULL, NULL);
+    if (uri) {
+        g_app_info_launch_default_for_uri(uri, NULL, NULL);
+        g_free(uri);
+    }
+}
+
+static void start_http_server(VenApp *app) {
+    gchar *dir = app->current_file ? g_path_get_dirname(app->current_file)
+                                   : g_get_current_dir();
+    gchar *cmd = g_strdup_printf("python3 -m http.server --directory %s", dir);
+    g_spawn_command_line_async(cmd, NULL);
+    update_status(app, "HTTP server started");
+    g_free(cmd);
+    g_free(dir);
+}
+
+static void run_python_file(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *cmd = g_strdup_printf("python3 %s", app->current_file);
+    run_shell_command(app, cmd);
+    g_free(cmd);
+}
+
+static void lint_python_file(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *cmd = g_strdup_printf("python3 -m py_compile %s", app->current_file);
+    run_shell_command(app, cmd);
+    g_free(cmd);
+}
+
+static void build_c_file(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *base = g_path_get_basename(app->current_file);
+    gchar *out = g_strdup_printf("/tmp/%s.out", base);
+    gchar *cmd = g_strdup_printf("gcc %s -o %s", app->current_file, out);
+    run_shell_command(app, cmd);
+    g_free(cmd);
+    g_free(base);
+    g_free(out);
+}
+
+static void run_c_binary(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *base = g_path_get_basename(app->current_file);
+    gchar *out = g_strdup_printf("/tmp/%s.out", base);
+    gchar *cmd = g_strdup(out);
+    run_shell_command(app, cmd);
+    g_free(cmd);
+    g_free(base);
+    g_free(out);
+}
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
@@ -227,6 +286,12 @@ static void show_help(VenApp *app) {
         ":transpose - swap line with next\n"
         ":insertfile [file] - insert another file\n"
         ":readonly - toggle read-only\n"
+        ":preview - open file in browser\n"
+        ":serve - start HTTP server\n"
+        ":runpy - run Python file\n"
+        ":lintpy - lint Python file\n"
+        ":buildc - compile C file\n"
+        ":runc - run compiled C\n"
         ":record NAME - start recording macro\n"
         ":stop - stop recording\n"
         ":play NAME - play macro\n"
@@ -1289,6 +1354,18 @@ static void process_command(VenApp *app, const gchar *cmd) {
         toggle_readonly(app);
     } else if (g_strcmp0(cmd, "openrecent") == 0 || g_strcmp0(cmd, ":openrecent") == 0) {
         open_recent(app);
+    } else if (g_strcmp0(cmd, "preview") == 0 || g_strcmp0(cmd, ":preview") == 0) {
+        preview_file(app);
+    } else if (g_strcmp0(cmd, "serve") == 0 || g_strcmp0(cmd, ":serve") == 0) {
+        start_http_server(app);
+    } else if (g_strcmp0(cmd, "runpy") == 0 || g_strcmp0(cmd, ":runpy") == 0) {
+        run_python_file(app);
+    } else if (g_strcmp0(cmd, "lintpy") == 0 || g_strcmp0(cmd, ":lintpy") == 0) {
+        lint_python_file(app);
+    } else if (g_strcmp0(cmd, "buildc") == 0 || g_strcmp0(cmd, ":buildc") == 0) {
+        build_c_file(app);
+    } else if (g_strcmp0(cmd, "runc") == 0 || g_strcmp0(cmd, ":runc") == 0) {
+        run_c_binary(app);
     } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
         const gchar *arg = strstr(cmd, " ");
         if (arg)
@@ -1454,6 +1531,12 @@ int main(int argc, char *argv[]) {
     GtkWidget *readonlyi = gtk_menu_item_new_with_label("Toggle Readonly");
     GtkWidget *newwini = gtk_menu_item_new_with_label("New Window");
     GtkWidget *searchi = gtk_menu_item_new_with_label("Search");
+    GtkWidget *previewi = gtk_menu_item_new_with_label("Preview");
+    GtkWidget *servei = gtk_menu_item_new_with_label("Start Server");
+    GtkWidget *runpyi = gtk_menu_item_new_with_label("Run Python");
+    GtkWidget *lintpyi = gtk_menu_item_new_with_label("Lint Python");
+    GtkWidget *buildci = gtk_menu_item_new_with_label("Build C");
+    GtkWidget *runci = gtk_menu_item_new_with_label("Run C");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), newwini);
@@ -1501,6 +1584,12 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), transposei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), insertfilei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), readonlyi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), previewi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), servi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runpyi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), lintpyi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), buildci);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runci);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), searchi);
 
     GtkWidget *helpmenu = gtk_menu_new();
@@ -1590,6 +1679,12 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(readonlyi), "app", &app);
     g_object_set_data(G_OBJECT(newwini), "app", &app);
     g_object_set_data(G_OBJECT(searchi), "app", &app);
+    g_object_set_data(G_OBJECT(previewi), "app", &app);
+    g_object_set_data(G_OBJECT(servei), "app", &app);
+    g_object_set_data(G_OBJECT(runpyi), "app", &app);
+    g_object_set_data(G_OBJECT(lintpyi), "app", &app);
+    g_object_set_data(G_OBJECT(buildci), "app", &app);
+    g_object_set_data(G_OBJECT(runci), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -1648,6 +1743,12 @@ int main(int argc, char *argv[]) {
     g_signal_connect(insertfilei, "activate", G_CALLBACK(on_menu_activate), ":insertfile");
     g_signal_connect(readonlyi, "activate", G_CALLBACK(on_menu_activate), "readonly");
     g_signal_connect(newwini, "activate", G_CALLBACK(on_menu_activate), "newwin");
+    g_signal_connect(previewi, "activate", G_CALLBACK(on_menu_activate), "preview");
+    g_signal_connect(servei, "activate", G_CALLBACK(on_menu_activate), "serve");
+    g_signal_connect(runpyi, "activate", G_CALLBACK(on_menu_activate), "runpy");
+    g_signal_connect(lintpyi, "activate", G_CALLBACK(on_menu_activate), "lintpy");
+    g_signal_connect(buildci, "activate", G_CALLBACK(on_menu_activate), "buildc");
+    g_signal_connect(runci, "activate", G_CALLBACK(on_menu_activate), "runc");
     g_signal_connect(searchi, "activate", G_CALLBACK(search_dialog), &app);
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");

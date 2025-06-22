@@ -13,6 +13,7 @@ Project website: <https://linuxksdteam.site>
 - Status bar showing the current mode and messages
 - Multiple windows via the `:newwin` command
 - Syntax highlighting using GtkSourceView
+- Built-in plugins for web, Python, and C development
 - Basic commands:
   - `:w [file]` to save the current buffer
   - `:q` to quit the editor
@@ -73,6 +74,12 @@ Project website: <https://linuxksdteam.site>
   - `:newwin` to open a new editor window
   - Error dialogs for failed file or command actions
   - Search dialog available from the Tools menu
+  - `:preview` to open the current file in your browser
+  - `:serve` to start a simple HTTP server in the file's directory
+  - `:runpy` to run the current Python file
+  - `:lintpy` to check the current Python file for errors
+  - `:buildc` to compile the current C file with gcc
+  - `:runc` to execute the compiled C binary
 
 ## Requirements
 
