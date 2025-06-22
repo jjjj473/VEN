@@ -1,0 +1,14 @@
+<html>
+<head>
+    <title>VEN Example</title>
+</head>
+<body>
+<h1>Welcome to VEN</h1>
+<p>Current time: <?VEN= time ?></p>
+<?VEN
+for i 0 2
+    echo "<p>Count ${i}</p>"
+endfor
+?>
+</body>
+</html>

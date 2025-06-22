@@ -1,0 +1,24 @@
+<?VEN
+set title "VEN Web App"
+set bgcolor "#fafafa"
+?>
+<html>
+<?VEN include header.ven ?>
+<body>
+<style>
+body { background-color: <?VEN= bgcolor ?>; font-family: Arial; }
+button { padding: 8px 16px; }
+</style>
+<h1>VEN Web App</h1>
+<button id="btn">Click me</button>
+<p id="count">0</p>
+<script>
+let count = 0;
+document.getElementById('btn').addEventListener('click', () => {
+  count++;
+  document.getElementById('count').textContent = count;
+});
+</script>
+<?VEN include footer.ven ?>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<?VEN
+set title "Articles"
+?>
+<html>
+<?VEN include header.ven ?>
+<body>
+<h1>Article List</h1>
+<ul>
+<?VEN
+for i 0 2
+    echo "<li>Post ${i}</li>\n"
+endfor
+?>
+</ul>
+<?VEN include footer.ven ?>
+</body>
+</html>

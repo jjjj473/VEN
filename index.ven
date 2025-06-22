@@ -1,0 +1,16 @@
+<?VEN
+set title "VEN in C"
+?>
+<html>
+<?VEN include header.ven ?>
+<body>
+<ul>
+<?VEN
+for i 0 4
+    echo "<li>Item ${i}</li>\n"
+endfor
+?>
+</ul>
+<?VEN include footer.ven ?>
+</body>
+</html>
