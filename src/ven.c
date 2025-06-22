@@ -94,6 +94,8 @@ static void start_recording(VenApp *app, const gchar *name);
 static void stop_recording(VenApp *app);
 static void play_macro(VenApp *app, const gchar *name);
 static void set_language_from_filename(VenApp *app, const gchar *fname);
+static void run_shell_command(VenApp *app, const gchar *cmd);
+static void process_command(VenApp *app, const gchar *cmd);
 static void preview_file(VenApp *app) {
     if (!app->current_file)
         return;
@@ -1229,7 +1231,7 @@ static void process_command(VenApp *app, const gchar *cmd) {
     }
     if (g_strcmp0(cmd, "newwin") == 0 || g_strcmp0(cmd, ":newwin") == 0) {
         if (program_path)
-            g_spawn_command_line_async(program_path, NULL, NULL);
+            g_spawn_command_line_async(program_path, NULL);
         return;
     }
     if (g_strcmp0(cmd, "q") == 0 || g_strcmp0(cmd, ":q") == 0) {
@@ -1585,7 +1587,7 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), insertfilei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), readonlyi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), previewi);
-    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), servi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), servei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runpyi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), lintpyi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), buildci);
