@@ -11,6 +11,8 @@ Project website: <https://linuxksdteam.site>
 - GTK3 based window with a text editing area
 - Insert mode and command mode similar to Vim
 - Status bar showing the current mode and messages
+- Multiple windows via the `:newwin` command
+- Syntax highlighting using GtkSourceView
 - Basic commands:
   - `:w [file]` to save the current buffer
   - `:q` to quit the editor
@@ -64,6 +66,11 @@ Project website: <https://linuxksdteam.site>
   - `:transpose` to swap the current line with the next
   - `:insertfile [file]` to insert another file's contents
   - `:readonly` to toggle read-only mode
+  - `:record NAME` to start recording a macro
+  - `:stop` to stop recording
+  - `:play NAME` to play a recorded macro
+  - `:pipe CMD` to pipe the buffer through a shell command
+  - `:newwin` to open a new editor window
   - Error dialogs for failed file or command actions
   - Search dialog available from the Tools menu
 
@@ -85,7 +92,7 @@ Install the dependencies and build the editor using `gcc` and `pkg-config`:
 Then compile the source:
 
 ```bash
-gcc -Wall $(pkg-config --cflags gtk+-3.0) -o ven src/ven.c $(pkg-config --libs gtk+-3.0)
+gcc -Wall $(pkg-config --cflags gtk+-3.0 gtksourceview-4) -o ven src/ven.c $(pkg-config --libs gtk+-3.0 gtksourceview-4)
 ```
 
 ## Running

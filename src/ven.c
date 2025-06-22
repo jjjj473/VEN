@@ -1,6 +1,8 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 #include <glib/gstdio.h>
+#include <gtksourceview/gtksource.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,9 +17,15 @@ typedef struct {
     gboolean command_mode;
     gboolean wrap;
     gboolean readonly;
+    gboolean recording;
+    gchar *recording_name;
+    GtkWidget *paned;
+    GtkWidget *view2;
 } VenApp;
 
 static gchar *last_opened = NULL;
+static GHashTable *macros = NULL;
+static const char *program_path = NULL;
 
 static void update_status(VenApp *app, const gchar *msg) {
     gchar *text = g_strdup_printf("[%s]%s%s",
@@ -81,10 +89,16 @@ static void transpose_line(VenApp *app);
 static void insert_file_contents(VenApp *app, const gchar *fname);
 static void toggle_readonly(VenApp *app);
 static void search_dialog(GtkWidget *widget, gpointer data);
+static void pipe_through_command(VenApp *app, const gchar *cmd);
+static void start_recording(VenApp *app, const gchar *name);
+static void stop_recording(VenApp *app);
+static void play_macro(VenApp *app, const gchar *name);
+static void set_language_from_filename(VenApp *app, const gchar *fname);
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
     g_clear_pointer(&app->current_file, g_free);
+    gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(app->buffer), NULL);
     update_status(app, "New file");
 }
 
@@ -101,6 +115,7 @@ static void open_file(VenApp *app, const gchar *fname) {
         g_free(content);
         g_free(app->current_file);
         app->current_file = g_strdup(fname);
+        set_language_from_filename(app, fname);
         g_free(last_opened);
         last_opened = g_strdup(fname);
         update_status(app, g_strdup_printf("Opened %s", fname));
@@ -212,6 +227,11 @@ static void show_help(VenApp *app) {
         ":transpose - swap line with next\n"
         ":insertfile [file] - insert another file\n"
         ":readonly - toggle read-only\n"
+        ":record NAME - start recording macro\n"
+        ":stop - stop recording\n"
+        ":play NAME - play macro\n"
+        ":pipe CMD - pipe buffer through command\n"
+        ":newwin - open new window\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
         ":goto N - jump to line N\n"
@@ -1032,7 +1052,121 @@ static void search_dialog(GtkWidget *widget, gpointer data) {
     g_free(pattern);
 }
 
+static void pipe_through_command(VenApp *app, const gchar *cmd) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar tmpin[] = "/tmp/ven_inXXXXXX";
+    gchar tmpout[] = "/tmp/ven_outXXXXXX";
+    int fdin = g_mkstemp(tmpin);
+    int fdout = g_mkstemp(tmpout);
+    close(fdin);
+    close(fdout);
+    g_file_set_contents(tmpin, text, -1, NULL);
+    gchar *command = g_strdup_printf("%s < %s > %s", cmd, tmpin, tmpout);
+    GError *err = NULL;
+    gboolean ok = g_spawn_command_line_sync(command, NULL, NULL, NULL, &err);
+    if (ok) {
+        gchar *out = NULL; gsize len;
+        if (g_file_get_contents(tmpout, &out, &len, &err)) {
+            gtk_text_buffer_set_text(app->buffer, out, len);
+            g_free(out);
+        } else {
+            show_error(app, err ? err->message : "Failed to read output");
+            if (err) g_error_free(err);
+        }
+    } else {
+        show_error(app, err ? err->message : "Failed to run command");
+        if (err) g_error_free(err);
+    }
+    g_free(command);
+    g_free(text);
+    g_remove(tmpin);
+    g_remove(tmpout);
+}
+
+static void start_recording(VenApp *app, const gchar *name) {
+    if (app->recording)
+        return;
+    if (!macros)
+        macros = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+                                      (GDestroyNotify)g_ptr_array_unref);
+    GPtrArray *arr = g_ptr_array_new_with_free_func(g_free);
+    g_hash_table_insert(macros, g_strdup(name), arr);
+    app->recording = TRUE;
+    g_free(app->recording_name);
+    app->recording_name = g_strdup(name);
+    update_status(app, g_strdup_printf("Recording %s", name));
+}
+
+static void stop_recording(VenApp *app) {
+    if (!app->recording)
+        return;
+    app->recording = FALSE;
+    g_free(app->recording_name);
+    app->recording_name = NULL;
+    update_status(app, "Recording stopped");
+}
+
+static void record_command(VenApp *app, const gchar *cmd) {
+    if (!app->recording || !app->recording_name)
+        return;
+    GPtrArray *arr = g_hash_table_lookup(macros, app->recording_name);
+    if (arr)
+        g_ptr_array_add(arr, g_strdup(cmd));
+}
+
+static void play_macro(VenApp *app, const gchar *name) {
+    if (!macros)
+        return;
+    GPtrArray *arr = g_hash_table_lookup(macros, name);
+    if (!arr) {
+        update_status(app, "Macro not found");
+        return;
+    }
+    for (guint i = 0; i < arr->len; i++) {
+        gchar *cmd = g_ptr_array_index(arr, i);
+        process_command(app, cmd);
+    }
+}
+
+static void set_language_from_filename(VenApp *app, const gchar *fname) {
+    if (!fname)
+        return;
+    GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
+    GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, fname, NULL);
+    if (language)
+        gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(app->buffer), language);
+}
+
 static void process_command(VenApp *app, const gchar *cmd) {
+    if (g_str_has_prefix(cmd, "record ") || g_str_has_prefix(cmd, ":record")) {
+        const gchar *name = strchr(cmd, ' ');
+        if (name)
+            start_recording(app, name + 1);
+        return;
+    }
+    if (g_strcmp0(cmd, "stop") == 0 || g_strcmp0(cmd, ":stop") == 0) {
+        stop_recording(app);
+        return;
+    }
+    if (g_str_has_prefix(cmd, "play ") || g_str_has_prefix(cmd, ":play")) {
+        const gchar *name = strchr(cmd, ' ');
+        if (name)
+            play_macro(app, name + 1);
+        return;
+    }
+    if (g_str_has_prefix(cmd, "pipe ") || g_str_has_prefix(cmd, ":pipe")) {
+        const gchar *c = strchr(cmd, ' ');
+        if (c)
+            pipe_through_command(app, c + 1);
+        return;
+    }
+    if (g_strcmp0(cmd, "newwin") == 0 || g_strcmp0(cmd, ":newwin") == 0) {
+        if (program_path)
+            g_spawn_command_line_async(program_path, NULL, NULL);
+        return;
+    }
     if (g_strcmp0(cmd, "q") == 0 || g_strcmp0(cmd, ":q") == 0) {
         gtk_window_close(GTK_WINDOW(app->window));
     } else if (g_str_has_prefix(cmd, "w ") || g_strcmp0(cmd, "w") == 0 || g_str_has_prefix(cmd, ":w")) {
@@ -1182,6 +1316,7 @@ static void process_command(VenApp *app, const gchar *cmd) {
     } else if (g_strcmp0(cmd, "help") == 0 || g_strcmp0(cmd, ":help") == 0) {
         show_help(app);
     }
+    record_command(app, cmd);
     gtk_entry_set_text(GTK_ENTRY(app->command_entry), "");
     app->command_mode = FALSE;
     gtk_widget_grab_focus(app->textview);
@@ -1223,6 +1358,8 @@ static void on_menu_activate(GtkWidget *widget, gpointer data) {
 
 int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
+
+    program_path = argv[0];
 
     VenApp app = {0};
     app.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -1315,9 +1452,11 @@ int main(int argc, char *argv[]) {
     GtkWidget *transposei = gtk_menu_item_new_with_label("Transpose Line");
     GtkWidget *insertfilei = gtk_menu_item_new_with_label("Insert File");
     GtkWidget *readonlyi = gtk_menu_item_new_with_label("Toggle Readonly");
+    GtkWidget *newwini = gtk_menu_item_new_with_label("New Window");
     GtkWidget *searchi = gtk_menu_item_new_with_label("Search");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), newwini);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), datei);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), visiti);
@@ -1374,8 +1513,8 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), helpi);
     gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), abouti);
 
-    app.textview = gtk_text_view_new();
-    app.buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(app.textview));
+    app.textview = GTK_WIDGET(gtk_source_view_new());
+    app.buffer = GTK_TEXT_BUFFER(gtk_text_view_get_buffer(GTK_TEXT_VIEW(app.textview)));
     app.wrap = TRUE;
     app.readonly = FALSE;
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(app.textview), GTK_WRAP_WORD);
@@ -1449,6 +1588,7 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(transposei), "app", &app);
     g_object_set_data(G_OBJECT(insertfilei), "app", &app);
     g_object_set_data(G_OBJECT(readonlyi), "app", &app);
+    g_object_set_data(G_OBJECT(newwini), "app", &app);
     g_object_set_data(G_OBJECT(searchi), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
@@ -1507,6 +1647,7 @@ int main(int argc, char *argv[]) {
     g_signal_connect(transposei, "activate", G_CALLBACK(on_menu_activate), "transpose");
     g_signal_connect(insertfilei, "activate", G_CALLBACK(on_menu_activate), ":insertfile");
     g_signal_connect(readonlyi, "activate", G_CALLBACK(on_menu_activate), "readonly");
+    g_signal_connect(newwini, "activate", G_CALLBACK(on_menu_activate), "newwin");
     g_signal_connect(searchi, "activate", G_CALLBACK(search_dialog), &app);
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
