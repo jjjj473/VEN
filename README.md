@@ -36,6 +36,18 @@ Project website: <https://linuxksdteam.site>
   - `:wrap` to toggle text wrapping
   - `:todo` to insert a TODO label
   - `:addlnum` to prefix lines with numbers
+  - `:comment`/`:uncomment` to comment or uncomment lines
+  - `:sort` to sort selected lines
+  - `:reverse` to reverse line order
+  - `:indent`/`:unindent` to adjust indentation
+  - `:clear` to erase the buffer
+  - `:uuid` to insert a generated UUID
+  - `:runfile` to execute the current file with `sh`
+  - `:openconf` to open `~/.venrc`
+  - `:dupword` to duplicate the current word
+  - `:join` to join selected lines
+  - `:noblank` to remove blank lines
+  - `:wordcount` to show a word count dialog
   - Error dialogs for failed file or command actions
 
 ## Requirements

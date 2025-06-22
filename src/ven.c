@@ -45,6 +45,20 @@ static void spaces_to_tabs(VenApp *app);
 static void toggle_wrap(VenApp *app);
 static void insert_todo(VenApp *app);
 static void add_line_numbers(VenApp *app);
+static void comment_lines(VenApp *app);
+static void uncomment_lines(VenApp *app);
+static void sort_lines(VenApp *app);
+static void reverse_lines(VenApp *app);
+static void indent_selection(VenApp *app);
+static void unindent_selection(VenApp *app);
+static void clear_buffer(VenApp *app);
+static void insert_uuid(VenApp *app);
+static void run_file(VenApp *app);
+static void open_config(VenApp *app);
+static void duplicate_word(VenApp *app);
+static void join_lines(VenApp *app);
+static void remove_blank_lines(VenApp *app);
+static void count_words(VenApp *app);
 
 static void new_file(VenApp *app) {
     gtk_text_buffer_set_text(app->buffer, "", -1);
@@ -143,6 +157,20 @@ static void show_help(VenApp *app) {
         ":wrap - toggle wrapping\n"
         ":todo - insert TODO label\n"
         ":addlnum - add line numbers\n"
+        ":comment - comment lines\n"
+        ":uncomment - uncomment lines\n"
+        ":sort - sort lines\n"
+        ":reverse - reverse lines\n"
+        ":indent - indent selection\n"
+        ":unindent - unindent selection\n"
+        ":clear - clear buffer\n"
+        ":uuid - insert UUID\n"
+        ":runfile - run current file\n"
+        ":openconf - open configuration\n"
+        ":dupword - duplicate word\n"
+        ":join - join lines\n"
+        ":noblank - remove blank lines\n"
+        ":wordcount - word count\n"
         ":/pattern - search\n"
         ":!cmd - run shell command\n"
         ":goto N - jump to line N\n"
@@ -433,6 +461,223 @@ static void add_line_numbers(VenApp *app) {
     g_free(text);
 }
 
+static void comment_lines(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        g_string_append(out, "# ");
+        g_string_append(out, lines[i]);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void uncomment_lines(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        gchar *l = lines[i];
+        if (g_str_has_prefix(l, "# "))
+            l += 2;
+        else if (g_str_has_prefix(l, "#"))
+            l += 1;
+        g_string_append(out, l);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static gint cmp_str(gconstpointer a, gconstpointer b) {
+    return g_strcmp0(*(char * const *)a, *(char * const *)b);
+}
+
+static void sort_lines(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    gsize len = g_strv_length(lines);
+    g_qsort_with_data(lines, len, sizeof(char *), (GCompareDataFunc)cmp_str, NULL);
+    gchar *joined = g_strjoinv("\n", lines);
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, joined, -1);
+    g_free(joined);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void reverse_lines(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    gsize len = g_strv_length(lines);
+    GString *out = g_string_new(NULL);
+    for (gssize i = len - 1; i >= 0; i--) {
+        g_string_append(out, lines[i]);
+        if (i > 0)
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void indent_selection(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        g_string_append(out, "    ");
+        g_string_append(out, lines[i]);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void unindent_selection(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end))
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        gchar *l = lines[i];
+        if (g_str_has_prefix(l, "    "))
+            l += 4;
+        g_string_append(out, l);
+        if (lines[i + 1])
+            g_string_append_c(out, '\n');
+    }
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void clear_buffer(VenApp *app) {
+    gtk_text_buffer_set_text(app->buffer, "", -1);
+}
+
+static void insert_uuid(VenApp *app) {
+    gchar *uuid = g_uuid_string_random();
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    gtk_text_buffer_insert(app->buffer, &iter, uuid, -1);
+    g_free(uuid);
+}
+
+static void run_file(VenApp *app) {
+    if (!app->current_file)
+        return;
+    gchar *cmd = g_strdup_printf("sh %s", app->current_file);
+    run_shell_command(app, cmd);
+    g_free(cmd);
+}
+
+static void open_config(VenApp *app) {
+    gchar *path = g_build_filename(g_get_home_dir(), ".venrc", NULL);
+    open_file(app, path);
+    g_free(path);
+}
+
+static void duplicate_word(VenApp *app) {
+    GtkTextIter iter, start, end;
+    gtk_text_buffer_get_iter_at_mark(app->buffer, &iter,
+        gtk_text_buffer_get_insert(app->buffer));
+    start = iter;
+    gtk_text_iter_backward_word_start(&start);
+    end = iter;
+    gtk_text_iter_forward_word_end(&end);
+    gchar *word = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gtk_text_buffer_insert(app->buffer, &end, word, -1);
+    g_free(word);
+}
+
+static void join_lines(VenApp *app) {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(app->buffer, &start, &end)) {
+        gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    }
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, FALSE);
+    gchar *joined = g_strdelimit(text, "\n", ' ');
+    gtk_text_buffer_delete(app->buffer, &start, &end);
+    gtk_text_buffer_insert(app->buffer, &start, joined, -1);
+    g_free(text);
+    /* joined points to same memory as text */
+}
+
+static void remove_blank_lines(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **lines = g_strsplit(text, "\n", -1);
+    GString *out = g_string_new(NULL);
+    for (int i = 0; lines[i]; i++) {
+        if (*lines[i] != '\0') {
+            g_string_append(out, lines[i]);
+            if (lines[i + 1])
+                g_string_append_c(out, '\n');
+        }
+    }
+    gtk_text_buffer_set_text(app->buffer, out->str, -1);
+    g_string_free(out, TRUE);
+    g_strfreev(lines);
+    g_free(text);
+}
+
+static void count_words(VenApp *app) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(app->buffer, &start, &end);
+    gchar *text = gtk_text_buffer_get_text(app->buffer, &start, &end, TRUE);
+    gchar **words = g_strsplit_set(text, " \n\t", -1);
+    int cnt = 0;
+    for (int i = 0; words[i]; i++)
+        if (*words[i])
+            cnt++;
+    gchar *msg = g_strdup_printf("Word count: %d", cnt);
+    GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    g_free(msg);
+    g_strfreev(words);
+    g_free(text);
+}
+
 static void goto_line_dialog(GtkWidget *widget, gpointer data) {
     VenApp *app = data;
     GtkWidget *d = gtk_dialog_new_with_buttons("Go To Line", GTK_WINDOW(app->window),
@@ -531,6 +776,34 @@ static void process_command(VenApp *app, const gchar *cmd) {
         insert_todo(app);
     } else if (g_strcmp0(cmd, "addlnum") == 0 || g_strcmp0(cmd, ":addlnum") == 0) {
         add_line_numbers(app);
+    } else if (g_strcmp0(cmd, "comment") == 0 || g_strcmp0(cmd, ":comment") == 0) {
+        comment_lines(app);
+    } else if (g_strcmp0(cmd, "uncomment") == 0 || g_strcmp0(cmd, ":uncomment") == 0) {
+        uncomment_lines(app);
+    } else if (g_strcmp0(cmd, "sort") == 0 || g_strcmp0(cmd, ":sort") == 0) {
+        sort_lines(app);
+    } else if (g_strcmp0(cmd, "reverse") == 0 || g_strcmp0(cmd, ":reverse") == 0) {
+        reverse_lines(app);
+    } else if (g_strcmp0(cmd, "indent") == 0 || g_strcmp0(cmd, ":indent") == 0) {
+        indent_selection(app);
+    } else if (g_strcmp0(cmd, "unindent") == 0 || g_strcmp0(cmd, ":unindent") == 0) {
+        unindent_selection(app);
+    } else if (g_strcmp0(cmd, "clear") == 0 || g_strcmp0(cmd, ":clear") == 0) {
+        clear_buffer(app);
+    } else if (g_strcmp0(cmd, "uuid") == 0 || g_strcmp0(cmd, ":uuid") == 0) {
+        insert_uuid(app);
+    } else if (g_strcmp0(cmd, "runfile") == 0 || g_strcmp0(cmd, ":runfile") == 0) {
+        run_file(app);
+    } else if (g_strcmp0(cmd, "openconf") == 0 || g_strcmp0(cmd, ":openconf") == 0) {
+        open_config(app);
+    } else if (g_strcmp0(cmd, "dupword") == 0 || g_strcmp0(cmd, ":dupword") == 0) {
+        duplicate_word(app);
+    } else if (g_strcmp0(cmd, "join") == 0 || g_strcmp0(cmd, ":join") == 0) {
+        join_lines(app);
+    } else if (g_strcmp0(cmd, "noblank") == 0 || g_strcmp0(cmd, ":noblank") == 0) {
+        remove_blank_lines(app);
+    } else if (g_strcmp0(cmd, "wordcount") == 0 || g_strcmp0(cmd, ":wordcount") == 0) {
+        count_words(app);
     } else if (g_str_has_prefix(cmd, "goto ") || g_str_has_prefix(cmd, ":goto")) {
         const gchar *arg = strstr(cmd, " ");
         if (arg)
@@ -660,6 +933,20 @@ int main(int argc, char *argv[]) {
     GtkWidget *t2si = gtk_menu_item_new_with_label("Tabs->Spaces");
     GtkWidget *s2ti = gtk_menu_item_new_with_label("Spaces->Tabs");
     GtkWidget *wrapi = gtk_menu_item_new_with_label("Toggle Wrap");
+    GtkWidget *commenti = gtk_menu_item_new_with_label("Comment Lines");
+    GtkWidget *uncommenti = gtk_menu_item_new_with_label("Uncomment Lines");
+    GtkWidget *sorti = gtk_menu_item_new_with_label("Sort Lines");
+    GtkWidget *reversei = gtk_menu_item_new_with_label("Reverse Lines");
+    GtkWidget *indenti = gtk_menu_item_new_with_label("Indent");
+    GtkWidget *unindenti = gtk_menu_item_new_with_label("Unindent");
+    GtkWidget *cleari = gtk_menu_item_new_with_label("Clear Buffer");
+    GtkWidget *uuidi = gtk_menu_item_new_with_label("Insert UUID");
+    GtkWidget *runfilei = gtk_menu_item_new_with_label("Run File");
+    GtkWidget *confopeni = gtk_menu_item_new_with_label("Open Config");
+    GtkWidget *dupwordi = gtk_menu_item_new_with_label("Duplicate Word");
+    GtkWidget *joini = gtk_menu_item_new_with_label("Join Lines");
+    GtkWidget *noblanki = gtk_menu_item_new_with_label("Remove Blank Lines");
+    GtkWidget *wordcounti = gtk_menu_item_new_with_label("Word Count");
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), gotoi);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), replacei);
@@ -675,6 +962,20 @@ int main(int argc, char *argv[]) {
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), t2si);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), s2ti);
     gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), wrapi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), commenti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), uncommenti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), sorti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), reversei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), indenti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), unindenti);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), cleari);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), uuidi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), runfilei);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), confopeni);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), dupwordi);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), joini);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), noblanki);
+    gtk_menu_shell_append(GTK_MENU_SHELL(toolsmenu), wordcounti);
 
     GtkWidget *helpmenu = gtk_menu_new();
     GtkWidget *help = gtk_menu_item_new_with_mnemonic("_Help");
@@ -729,6 +1030,20 @@ int main(int argc, char *argv[]) {
     g_object_set_data(G_OBJECT(t2si), "app", &app);
     g_object_set_data(G_OBJECT(s2ti), "app", &app);
     g_object_set_data(G_OBJECT(wrapi), "app", &app);
+    g_object_set_data(G_OBJECT(commenti), "app", &app);
+    g_object_set_data(G_OBJECT(uncommenti), "app", &app);
+    g_object_set_data(G_OBJECT(sorti), "app", &app);
+    g_object_set_data(G_OBJECT(reversei), "app", &app);
+    g_object_set_data(G_OBJECT(indenti), "app", &app);
+    g_object_set_data(G_OBJECT(unindenti), "app", &app);
+    g_object_set_data(G_OBJECT(cleari), "app", &app);
+    g_object_set_data(G_OBJECT(uuidi), "app", &app);
+    g_object_set_data(G_OBJECT(runfilei), "app", &app);
+    g_object_set_data(G_OBJECT(confopeni), "app", &app);
+    g_object_set_data(G_OBJECT(dupwordi), "app", &app);
+    g_object_set_data(G_OBJECT(joini), "app", &app);
+    g_object_set_data(G_OBJECT(noblanki), "app", &app);
+    g_object_set_data(G_OBJECT(wordcounti), "app", &app);
     g_object_set_data(G_OBJECT(helpi), "app", &app);
     g_object_set_data(G_OBJECT(abouti), "app", &app);
 
@@ -755,6 +1070,20 @@ int main(int argc, char *argv[]) {
     g_signal_connect(t2si, "activate", G_CALLBACK(on_menu_activate), "tabs2spaces");
     g_signal_connect(s2ti, "activate", G_CALLBACK(on_menu_activate), "spaces2tabs");
     g_signal_connect(wrapi, "activate", G_CALLBACK(on_menu_activate), "wrap");
+    g_signal_connect(commenti, "activate", G_CALLBACK(on_menu_activate), "comment");
+    g_signal_connect(uncommenti, "activate", G_CALLBACK(on_menu_activate), "uncomment");
+    g_signal_connect(sorti, "activate", G_CALLBACK(on_menu_activate), "sort");
+    g_signal_connect(reversei, "activate", G_CALLBACK(on_menu_activate), "reverse");
+    g_signal_connect(indenti, "activate", G_CALLBACK(on_menu_activate), "indent");
+    g_signal_connect(unindenti, "activate", G_CALLBACK(on_menu_activate), "unindent");
+    g_signal_connect(cleari, "activate", G_CALLBACK(on_menu_activate), "clear");
+    g_signal_connect(uuidi, "activate", G_CALLBACK(on_menu_activate), "uuid");
+    g_signal_connect(runfilei, "activate", G_CALLBACK(on_menu_activate), "runfile");
+    g_signal_connect(confopeni, "activate", G_CALLBACK(on_menu_activate), "openconf");
+    g_signal_connect(dupwordi, "activate", G_CALLBACK(on_menu_activate), "dupword");
+    g_signal_connect(joini, "activate", G_CALLBACK(on_menu_activate), "join");
+    g_signal_connect(noblanki, "activate", G_CALLBACK(on_menu_activate), "noblank");
+    g_signal_connect(wordcounti, "activate", G_CALLBACK(on_menu_activate), "wordcount");
     g_signal_connect(helpi, "activate", G_CALLBACK(on_menu_activate), "help");
     g_signal_connect(abouti, "activate", G_CALLBACK(on_menu_activate), "about");
 
