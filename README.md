@@ -57,6 +57,30 @@ plugin must provide a `run(gui)` function. The plugin manager (accessible from
 `Tools -> Plugins`) lists available plugins and lets you execute them on the
 current document.
 
+#### Highlight plugin
+
+The bundled **highlight** plugin uses the [Pygments](https://pygments.org)
+library to provide syntax highlighting for twelve languages:
+
+* Python
+* C
+* C++
+* Java
+* JavaScript
+* HTML
+* CSS
+* Ruby
+* Go
+* Rust
+* Bash
+* Markdown
+
+If Pygments is not installed you can get it with:
+
+```sh
+pip install pygments
+```
+
 ### Build & Run
 
 The *Build & Run* command runs `make` in the repository root and then launches
