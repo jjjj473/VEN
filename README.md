@@ -50,6 +50,18 @@ The GUI exposes the following twelve tools:
 11. Plugins
 12. Build & Run
 
+### Plugins
+
+Plugins are simple Python modules placed in the `plugins/` directory. Each
+plugin must provide a `run(gui)` function. The plugin manager (accessible from
+`Tools -> Plugins`) lists available plugins and lets you execute them on the
+current document.
+
+### Build & Run
+
+The *Build & Run* command runs `make` in the repository root and then launches
+the freshly built `tuxpad` binary on the currently loaded file, if any.
+
 ## Cleaning
 
 To clean build artifacts run:

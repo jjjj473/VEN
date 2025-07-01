@@ -1,8 +1,57 @@
 import os
 import sys
 import subprocess
+import importlib.util
 import tkinter as tk
 from tkinter import filedialog, messagebox
+
+
+class PluginManager:
+    """Simple plugin manager that loads plugins from the ../plugins directory."""
+
+    def __init__(self, gui):
+        self.gui = gui
+        self.plugins_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'plugins'))
+
+    def list_plugins(self):
+        return [f[:-3] for f in os.listdir(self.plugins_dir)
+                if f.endswith('.py') and f != '__init__.py']
+
+    def load_plugin(self, name):
+        path = os.path.join(self.plugins_dir, f"{name}.py")
+        if not os.path.exists(path):
+            return None
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def run_plugin(self, name):
+        mod = self.load_plugin(name)
+        if mod and hasattr(mod, 'run'):
+            try:
+                mod.run(self.gui)
+            except Exception as exc:
+                messagebox.showerror('Plugin Error', str(exc))
+        else:
+            messagebox.showwarning('Plugin', f'Plugin {name} has no run()')
+
+    def open_window(self):
+        win = tk.Toplevel(self.gui.root)
+        win.title('Plugins')
+        lb = tk.Listbox(win)
+        for p in self.list_plugins():
+            lb.insert(tk.END, p)
+        lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        def run_selected():
+            sel = lb.curselection()
+            if sel:
+                name = lb.get(sel[0])
+                self.run_plugin(name)
+
+        run_btn = tk.Button(win, text='Run', command=run_selected)
+        run_btn.pack(side=tk.RIGHT)
 
 
 class TuxpadGUI:
@@ -13,6 +62,9 @@ class TuxpadGUI:
         self.text.pack(expand=True, fill=tk.BOTH)
         self.filename = None
         self.create_menus()
+
+        # plugin manager
+        self.plugin_manager = PluginManager(self)
 
     def create_menus(self):
         menubar = tk.Menu(self.root)
@@ -76,17 +128,21 @@ class TuxpadGUI:
         messagebox.showinfo("Replace", "Replace feature not implemented yet.")
 
     def highlight(self):
-        script = os.path.join(os.path.dirname(__file__), 'highlight.py')
-        subprocess.run([sys.executable, script])
+        self.plugin_manager.run_plugin('highlight')
 
     def preferences(self):
         messagebox.showinfo("Preferences", "Preferences dialog not implemented yet.")
 
     def plugins(self):
-        messagebox.showinfo("Plugins", "Plugin manager not implemented yet.")
+        self.plugin_manager.open_window()
 
     def build_run(self):
-        messagebox.showinfo("Build & Run", "Build system integration not implemented yet.")
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        subprocess.run(['make'], cwd=root_dir)
+        if self.filename:
+            subprocess.run([os.path.join(root_dir, 'tuxpad'), self.filename])
+        else:
+            messagebox.showinfo("Build & Run", "No file loaded to run.")
 
 
 def main():
