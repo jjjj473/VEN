@@ -12,6 +12,21 @@ Ensure Python 3 with Tkinter is installed (most Linux distros provide this by de
 python3 advanced_mousepad.py
 ```
 
-This launches a window with basic editing features such as open, save, find, undo/redo and font selection. Additional tools include inserting the current date/time, word counting and a dark mode toggle. A status bar at the bottom shows the current cursor position.
+This launches a window with many editing features. Beyond open, save and find, the editor now provides a suite of advanced tools such as:
+
+- Insert date/time
+- Word count
+- Toggle dark mode
+- Search and replace
+- Go to line
+- Convert text to upper/lowercase
+- Sort lines
+- Toggle word wrap
+- Duplicate line
+- Remove trailing spaces
+- Auto indent
+- Insert line numbers
+
+A right-click context menu offers quick access to copy, paste, undo, redo and these tools. A status bar at the bottom shows the current cursor position and the editor autosaves periodically.
 
 Mousepad is traditionally a simple text editor for the Xfce desktop environment. Advanced Mousepad extends this idea in a lightweight form that should work on any Linux distribution.

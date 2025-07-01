@@ -12,9 +12,10 @@ class AdvancedMousepad(tk.Tk):
         self.dark_mode = False
         self._create_widgets()
         self._create_bindings()
+        self._start_auto_save()
 
     def _create_widgets(self):
-        self.text = tk.Text(self, undo=True)
+        self.text = tk.Text(self, undo=True, wrap=tk.WORD)
         self.text.pack(fill=tk.BOTH, expand=1)
 
         self.menubar = tk.Menu(self)
@@ -44,11 +45,37 @@ class AdvancedMousepad(tk.Tk):
         tools_menu.add_command(label='Insert Date/Time', command=self.insert_datetime)
         tools_menu.add_command(label='Word Count', command=self.word_count)
         tools_menu.add_command(label='Toggle Dark Mode', command=self.toggle_dark_mode)
+        tools_menu.add_separator()
+        tools_menu.add_command(label='Search && Replace', command=self.search_replace)
+        tools_menu.add_command(label='Go To Line', command=self.goto_line)
+        tools_menu.add_command(label='To Uppercase', command=self.to_uppercase)
+        tools_menu.add_command(label='To Lowercase', command=self.to_lowercase)
+        tools_menu.add_command(label='Sort Lines', command=self.sort_lines)
+        tools_menu.add_command(label='Toggle Wrap', command=self.toggle_wrap)
+        tools_menu.add_command(label='Duplicate Line', command=self.duplicate_line)
+        tools_menu.add_command(label='Remove Trailing Spaces', command=self.remove_trailing_spaces)
+        tools_menu.add_command(label='Auto Indent', command=self.auto_indent)
+        tools_menu.add_command(label='Insert Line Numbers', command=self.insert_line_numbers)
         self.menubar.add_cascade(label='Tools', menu=tools_menu)
 
         self.status = tk.StringVar(value='Ln 1, Col 0')
         self.statusbar = tk.Label(self, textvariable=self.status, anchor='w')
         self.statusbar.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(label='Undo', command=self.text.edit_undo)
+        self.context_menu.add_command(label='Redo', command=self.text.edit_redo)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label='Cut', command=lambda: self.text.event_generate('<<Cut>>'))
+        self.context_menu.add_command(label='Copy', command=lambda: self.text.event_generate('<<Copy>>'))
+        self.context_menu.add_command(label='Paste', command=lambda: self.text.event_generate('<<Paste>>'))
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label='Insert Date/Time', command=self.insert_datetime)
+        self.context_menu.add_command(label='Word Count', command=self.word_count)
+        self.context_menu.add_command(label='Toggle Dark Mode', command=self.toggle_dark_mode)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label='Search && Replace', command=self.search_replace)
+        self.context_menu.add_command(label='Go To Line', command=self.goto_line)
 
         self.config(menu=self.menubar)
 
@@ -59,6 +86,8 @@ class AdvancedMousepad(tk.Tk):
         self.bind('<Control-f>', lambda e: self.find_text())
         self.text.bind('<KeyRelease>', self._update_status)
         self.text.bind('<ButtonRelease>', self._update_status)
+        self.text.bind('<Button-3>', self._show_context_menu)
+        self.text.bind('<Motion>', self._highlight_line)
         self._update_status()
 
     def new_file(self):
@@ -149,6 +178,101 @@ class AdvancedMousepad(tk.Tk):
         else:
             self.text.config(bg='white', fg='black', insertbackground='black')
             self.statusbar.config(bg=self.cget('bg'), fg='black')
+
+    def search_replace(self):
+        target = simpledialog.askstring('Replace', 'Find text:')
+        if target is None:
+            return
+        replacement = simpledialog.askstring('Replace', 'Replace with:')
+        if replacement is None:
+            return
+        count = 0
+        pos = '1.0'
+        while True:
+            pos = self.text.search(target, pos, tk.END)
+            if not pos:
+                break
+            end = f"{pos}+{len(target)}c"
+            self.text.delete(pos, end)
+            self.text.insert(pos, replacement)
+            pos = f"{pos}+{len(replacement)}c"
+            count += 1
+        messagebox.showinfo('Replace', f'Replaced {count} occurrence(s)')
+
+    def goto_line(self):
+        line = simpledialog.askinteger('Go to Line', 'Line number:')
+        if line:
+            max_index = int(self.text.index(tk.END).split('.')[0])
+            if 1 <= line <= max_index:
+                self.text.mark_set(tk.INSERT, f'{line}.0')
+                self.text.see(f'{line}.0')
+
+    def to_uppercase(self):
+        try:
+            sel = self.text.get(tk.SEL_FIRST, tk.SEL_LAST).upper()
+            self.text.delete(tk.SEL_FIRST, tk.SEL_LAST)
+            self.text.insert(tk.INSERT, sel)
+        except tk.TclError:
+            pass
+
+    def to_lowercase(self):
+        try:
+            sel = self.text.get(tk.SEL_FIRST, tk.SEL_LAST).lower()
+            self.text.delete(tk.SEL_FIRST, tk.SEL_LAST)
+            self.text.insert(tk.INSERT, sel)
+        except tk.TclError:
+            pass
+
+    def sort_lines(self):
+        data = self.text.get('1.0', tk.END).splitlines()
+        data.sort()
+        self.text.delete('1.0', tk.END)
+        self.text.insert(tk.END, '\n'.join(data))
+
+    def toggle_wrap(self):
+        current = self.text.cget('wrap')
+        self.text.config(wrap=tk.NONE if current != tk.NONE else tk.WORD)
+
+    def duplicate_line(self):
+        index = self.text.index(tk.INSERT)
+        line = index.split('.')[0]
+        content = self.text.get(f'{line}.0', f'{line}.0 lineend')
+        self.text.insert(f'{line}.0 lineend', '\n' + content)
+
+    def remove_trailing_spaces(self):
+        data = [line.rstrip() for line in self.text.get('1.0', tk.END).splitlines()]
+        self.text.delete('1.0', tk.END)
+        self.text.insert(tk.END, '\n'.join(data))
+
+    def auto_indent(self):
+        data = self.text.get('1.0', tk.END).splitlines()
+        indented = ['    ' + line for line in data]
+        self.text.delete('1.0', tk.END)
+        self.text.insert(tk.END, '\n'.join(indented))
+
+    def insert_line_numbers(self):
+        lines = self.text.get('1.0', tk.END).splitlines()
+        numbered = [f"{i+1}: {l}" for i, l in enumerate(lines)]
+        self.text.delete('1.0', tk.END)
+        self.text.insert(tk.END, '\n'.join(numbered))
+
+    def _start_auto_save(self):
+        if self.filename:
+            try:
+                with open(self.filename, 'w') as f:
+                    f.write(self.text.get('1.0', tk.END))
+            except Exception:
+                pass
+        self.after(300000, self._start_auto_save)
+
+    def _highlight_line(self, event=None):
+        self.text.tag_remove('current_line', '1.0', tk.END)
+        line = self.text.index(tk.INSERT).split('.')[0]
+        self.text.tag_add('current_line', f'{line}.0', f'{line}.0 lineend')
+        self.text.tag_config('current_line', background='#ffffcc')
+
+    def _show_context_menu(self, event):
+        self.context_menu.tk_popup(event.x_root, event.y_root)
 
     def _update_status(self, event=None):
         index = self.text.index(tk.INSERT)
