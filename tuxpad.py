@@ -34,6 +34,8 @@ class SplashScreen(tk.Toplevel):
             troughcolor='#e0e0e0',
             background='#4a90e2',
         )
+        # provide a layout so the style exists for horizontal progress bars
+        style.layout('Setup.TProgressbar', style.layout('Horizontal.TProgressbar'))
 
         self.progress = ttk.Progressbar(
             self,
