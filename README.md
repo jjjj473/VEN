@@ -45,3 +45,7 @@ bar. While typing, newly inserted characters flash to help track cursor
 movement.
 
 Mousepad is traditionally a simple text editor for the Xfce desktop environment. TuxPad extends this idea in a lightweight form that should work on any Linux distribution.
+
+## Credits
+
+Built by jjjj473 with the project [jjjj473/VEN](https://github.com/jjjj473/VEN).
