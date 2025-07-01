@@ -1,10 +1,33 @@
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox, simpledialog, ttk
 import os
 from pygments import lex
 from pygments.lexers import get_lexer_by_name
+
 from pygments.token import Token
+
+
+class SplashScreen(tk.Toplevel):
+    """Simple splash screen with welcome message and progress bar."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title('Welcome')
+        self.geometry('300x150')
+        self.resizable(False, False)
+        label = tk.Label(self, text='Welcome to TuxPad', font=('Arial', 14))
+        label.pack(pady=20)
+        self.progress = ttk.Progressbar(self, mode='determinate', maximum=100)
+        self.progress.pack(fill=tk.X, padx=20)
+        self.after(100, self._animate)
+
+    def _animate(self, value=0):
+        if value >= 100:
+            self.destroy()
+            return
+        self.progress['value'] = value
+        self.after(20, self._animate, value + 5)
 
 class TuxPad(tk.Tk):
     def __init__(self):
@@ -130,6 +153,7 @@ class TuxPad(tk.Tk):
         self.bind('<Control-n>', lambda e: self.new_file())
         self.bind('<Control-f>', lambda e: self.find_text())
         self.text.bind('<KeyRelease>', self._update_status)
+        self.text.bind('<Key>', self._typing_effect)
         self.text.bind('<ButtonRelease>', self._update_status)
         self.text.bind('<Button-3>', self._show_context_menu)
         self.text.bind('<Motion>', self._highlight_line)
@@ -498,6 +522,15 @@ class TuxPad(tk.Tk):
         self.text.tag_add('current_line', f'{line}.0', f'{line}.0 lineend')
         self.text.tag_config('current_line', background='#ffffcc')
 
+    def _typing_effect(self, event=None):
+        pos = self.text.index(tk.INSERT)
+        line, col = map(int, pos.split('.'))
+        start = f"{line}.{col-1 if col > 0 else 0}"
+        end = f"{line}.{col}"
+        self.text.tag_add('typed', start, end)
+        self.text.tag_config('typed', background='#ccffcc')
+        self.text.after(150, lambda: self.text.tag_remove('typed', start, end))
+
     def _show_context_menu(self, event):
         self.context_menu.tk_popup(event.x_root, event.y_root)
 
@@ -520,4 +553,8 @@ class TuxPad(tk.Tk):
 
 if __name__ == '__main__':
     app = TuxPad()
+    app.withdraw()
+    splash = SplashScreen(app)
+    app.wait_window(splash)
+    app.deiconify()
     app.mainloop()
