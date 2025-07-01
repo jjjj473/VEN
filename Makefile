@@ -17,5 +17,20 @@ tuxpad: $(TUXPAD_OBJS)
 gui:
 	python3 scripts/editor_gui.py
 
+# Create a Python virtual environment with plugin dependencies
+VENV=.venv
+
+$(VENV)/bin/activate:
+	python3 -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+	$(VENV)/bin/pip install pygments pyspellchecker black matplotlib
+
+venv: $(VENV)/bin/activate
+
+# Build the project and run Tuxpad using the virtual environment
+FILE?=README.md
+run: tuxpad venv
+	PATH=$(VENV)/bin:$$PATH ./tuxpad $(FILE)
+
 clean:
 	rm -f src/*.o tuxpad

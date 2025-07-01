@@ -24,6 +24,20 @@ Run the program by providing a file name:
 ./tuxpad path/to/file.txt
 ```
 
+To install the optional Python dependencies in a virtual environment run:
+
+```sh
+make venv
+```
+
+Launch the editor with the environment using:
+
+```sh
+make run FILE=path/to/file.txt
+```
+
+If `FILE` is omitted it defaults to `README.md`.
+
 The program counts the number of lines in the file using a C++ helper and then
 launches a Python Tkinter GUI that demonstrates a dozen editor tools. If no
 graphical display is available (i.e. the `DISPLAY` variable is unset) the GUI
