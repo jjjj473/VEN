@@ -85,6 +85,10 @@ class TuxPad(tk.Tk):
         tools_menu.add_command(label='Run Python', command=self.run_python)
         self.menubar.add_cascade(label='Tools', menu=tools_menu)
 
+        help_menu = tk.Menu(self.menubar, tearoff=0)
+        help_menu.add_command(label='About', command=self.show_about)
+        self.menubar.add_cascade(label='Help', menu=help_menu)
+
         self.status = tk.StringVar(value='Ln 1, Col 0')
         self.statusbar = tk.Label(self, textvariable=self.status, anchor='w')
         self.statusbar.pack(fill=tk.X, side=tk.BOTTOM)
@@ -478,6 +482,15 @@ class TuxPad(tk.Tk):
             except Exception:
                 pass
         self.after(300000, self._start_auto_save)
+
+    def show_about(self):
+        message = (
+            'TuxPad is a feature-rich text editor with tools like syntax '
+            'highlighting, bookmarks, indentation helpers, search and '
+            'replace, line sorting, case conversion, autosave, recent '
+            'files, file watching and more.'
+        )
+        messagebox.showinfo('About TuxPad', message)
 
     def _highlight_line(self, event=None):
         self.text.tag_remove('current_line', '1.0', tk.END)

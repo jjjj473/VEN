@@ -35,6 +35,8 @@ This launches a window with many editing features. Beyond open, save and find, t
 - Open recent files
 - Reload file if changed externally
 
+An **About** option under the Help menu summarizes these capabilities.
+
 A right-click context menu offers quick access to copy, paste, undo, redo and these tools. A status bar at the bottom shows the current cursor position and the editor autosaves periodically.
 
 Mousepad is traditionally a simple text editor for the Xfce desktop environment. TuxPad extends this idea in a lightweight form that should work on any Linux distribution.
