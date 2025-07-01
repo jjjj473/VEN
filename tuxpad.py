@@ -6,16 +6,20 @@ from pygments import lex
 from pygments.lexers import get_lexer_by_name
 from pygments.token import Token
 
-class AdvancedMousepad(tk.Tk):
+class TuxPad(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Advanced Mousepad')
+        self.title('TuxPad')
         self.geometry('800x600')
         self.filename = None
         self.dark_mode = False
+        self.bookmarks = set()
+        self.recent_files = []
+        self.last_mtime = None
         self._create_widgets()
         self._create_bindings()
         self._start_auto_save()
+        self._watch_file()
 
     def _create_widgets(self):
         self.text = tk.Text(self, undo=True, wrap=tk.WORD)
@@ -28,6 +32,9 @@ class AdvancedMousepad(tk.Tk):
         file_menu.add_command(label='Open', command=self.open_file)
         file_menu.add_command(label='Save', command=self.save_file)
         file_menu.add_command(label='Save As', command=self.save_as)
+        self.recent_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label="Open Recent", menu=self.recent_menu)
+        file_menu.add_command(label="Reload", command=self.reload_file)
         file_menu.add_separator()
         file_menu.add_command(label='Exit', command=self.quit)
         self.menubar.add_cascade(label='File', menu=file_menu)
@@ -66,6 +73,10 @@ class AdvancedMousepad(tk.Tk):
         syntax_menu.add_command(label='C', command=lambda: self.highlight_syntax('c'))
         tools_menu.add_cascade(label='Syntax Highlight', menu=syntax_menu)
         tools_menu.add_command(label='Clear Highlighting', command=self.clear_highlighting)
+        tools_menu.add_command(label="Indent Selection", command=self.indent_selection)
+        tools_menu.add_command(label="Unindent Selection", command=self.unindent_selection)
+        tools_menu.add_command(label="Toggle Bookmark", command=self.toggle_bookmark)
+        tools_menu.add_command(label="Goto Bookmark", command=self.goto_bookmark)
         tools_menu.add_separator()
         tools_menu.add_command(label='Comment Selection', command=self.comment_selection)
         tools_menu.add_command(label='Uncomment Selection', command=self.uncomment_selection)
@@ -99,6 +110,10 @@ class AdvancedMousepad(tk.Tk):
         syntax_sub.add_command(label='C', command=lambda: self.highlight_syntax('c'))
         self.context_menu.add_cascade(label='Syntax Highlight', menu=syntax_sub)
         self.context_menu.add_command(label='Clear Highlighting', command=self.clear_highlighting)
+        self.context_menu.add_command(label="Indent Selection", command=self.indent_selection)
+        self.context_menu.add_command(label="Unindent Selection", command=self.unindent_selection)
+        self.context_menu.add_command(label="Toggle Bookmark", command=self.toggle_bookmark)
+        self.context_menu.add_command(label="Goto Bookmark", command=self.goto_bookmark)
         self.context_menu.add_separator()
         self.context_menu.add_command(label='Comment Selection', command=self.comment_selection)
         self.context_menu.add_command(label='Uncomment Selection', command=self.uncomment_selection)
@@ -120,7 +135,7 @@ class AdvancedMousepad(tk.Tk):
         if self._confirm_discard_changes():
             self.text.delete('1.0', tk.END)
             self.filename = None
-            self.title('Advanced Mousepad')
+            self.title('TuxPad')
             self._update_status()
 
     def open_file(self):
@@ -134,7 +149,13 @@ class AdvancedMousepad(tk.Tk):
                 self.text.delete('1.0', tk.END)
                 self.text.insert(tk.END, data)
                 self.filename = file
-                self.title(f'Advanced Mousepad - {os.path.basename(file)}')
+                self.last_mtime = os.path.getmtime(file)
+                self._add_recent(file)
+                self._update_recent_menu()
+                self.title(f'TuxPad - {os.path.basename(file)}')
+                self.last_mtime = os.path.getmtime(file)
+                self._add_recent(file)
+                self._update_recent_menu()
                 self._update_status()
             except Exception as e:
                 messagebox.showerror('Error', str(e))
@@ -145,6 +166,9 @@ class AdvancedMousepad(tk.Tk):
                 with open(self.filename, 'w') as f:
                     f.write(self.text.get('1.0', tk.END))
                 messagebox.showinfo('Saved', 'File saved successfully')
+                self.last_mtime = os.path.getmtime(self.filename)
+                self._add_recent(self.filename)
+                self._update_recent_menu()
             except Exception as e:
                 messagebox.showerror('Error', str(e))
         else:
@@ -157,7 +181,10 @@ class AdvancedMousepad(tk.Tk):
                 with open(file, 'w') as f:
                     f.write(self.text.get('1.0', tk.END))
                 self.filename = file
-                self.title(f'Advanced Mousepad - {os.path.basename(file)}')
+                self.last_mtime = os.path.getmtime(file)
+                self._add_recent(file)
+                self._update_recent_menu()
+                self.title(f'TuxPad - {os.path.basename(file)}')
                 messagebox.showinfo('Saved', 'File saved successfully')
             except Exception as e:
                 messagebox.showerror('Error', str(e))
@@ -356,6 +383,93 @@ class AdvancedMousepad(tk.Tk):
         except Exception as e:
             messagebox.showerror('Run Error', str(e))
 
+    def indent_selection(self):
+        try:
+            start = self.text.index(tk.SEL_FIRST)
+            end = self.text.index(tk.SEL_LAST)
+        except tk.TclError:
+            return
+        lines = self.text.get(start, end).splitlines()
+        indented = ['    ' + l for l in lines]
+        self.text.delete(start, end)
+        self.text.insert(start, '\n'.join(indented))
+
+    def unindent_selection(self):
+        try:
+            start = self.text.index(tk.SEL_FIRST)
+            end = self.text.index(tk.SEL_LAST)
+        except tk.TclError:
+            return
+        lines = self.text.get(start, end).splitlines()
+        unindented = [l[4:] if l.startswith('    ') else l for l in lines]
+        self.text.delete(start, end)
+        self.text.insert(start, '\n'.join(unindented))
+
+    def toggle_bookmark(self):
+        line = int(self.text.index(tk.INSERT).split('.')[0])
+        if line in self.bookmarks:
+            self.bookmarks.remove(line)
+        else:
+            self.bookmarks.add(line)
+
+    def goto_bookmark(self):
+        if not self.bookmarks:
+            messagebox.showinfo('Bookmarks', 'No bookmarks set')
+            return
+        line = simpledialog.askinteger('Bookmarks', 'Go to line:', initialvalue=min(self.bookmarks))
+        if line and line in self.bookmarks:
+            self.text.mark_set(tk.INSERT, f'{line}.0')
+            self.text.see(f'{line}.0')
+
+    def reload_file(self):
+        if not self.filename:
+            return
+        if self.text.edit_modified() and not messagebox.askyesno('Reload', 'Discard changes and reload?'):
+            return
+        try:
+            with open(self.filename, 'r') as f:
+                data = f.read()
+            self.text.delete('1.0', tk.END)
+            self.text.insert(tk.END, data)
+            self.last_mtime = os.path.getmtime(self.filename)
+            self.text.edit_modified(False)
+        except Exception as e:
+            messagebox.showerror('Reload', str(e))
+
+    def _add_recent(self, path):
+        if path in self.recent_files:
+            self.recent_files.remove(path)
+        self.recent_files.insert(0, path)
+        self.recent_files = self.recent_files[:5]
+
+    def _update_recent_menu(self):
+        self.recent_menu.delete(0, tk.END)
+        for p in self.recent_files:
+            self.recent_menu.add_command(label=os.path.basename(p), command=lambda f=p: self._open_recent(f))
+
+    def _open_recent(self, path):
+        if not self._confirm_discard_changes():
+            return
+        try:
+            with open(path, 'r') as f:
+                data = f.read()
+            self.text.delete('1.0', tk.END)
+            self.text.insert(tk.END, data)
+            self.filename = path
+            self.title(f'TuxPad - {os.path.basename(path)}')
+            self.last_mtime = os.path.getmtime(path)
+            self._add_recent(path)
+            self._update_recent_menu()
+        except Exception as e:
+            messagebox.showerror('Error', str(e))
+
+    def _watch_file(self):
+        if self.filename and os.path.exists(self.filename):
+            mtime = os.path.getmtime(self.filename)
+            if self.last_mtime and mtime > self.last_mtime and not self.text.edit_modified():
+                self.reload_file()
+            self.last_mtime = mtime
+        self.after(5000, self._watch_file)
     def _start_auto_save(self):
         if self.filename:
             try:
@@ -392,5 +506,5 @@ class AdvancedMousepad(tk.Tk):
         return True
 
 if __name__ == '__main__':
-    app = AdvancedMousepad()
+    app = TuxPad()
     app.mainloop()
