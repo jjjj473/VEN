@@ -35,7 +35,7 @@ You can also run the GUI on its own:
 python3 scripts/editor_gui.py
 ```
 
-The GUI exposes the following twelve tools:
+The GUI exposes the following fifteen tools:
 
 1. New
 2. Open
@@ -49,6 +49,9 @@ The GUI exposes the following twelve tools:
 10. Preferences
 11. Plugins
 12. Build & Run
+13. Spell Check
+14. Format Python
+15. Word Frequency
 
 ### Plugins
 
@@ -79,6 +82,33 @@ If Pygments is not installed you can get it with:
 
 ```sh
 pip install pygments
+```
+
+#### Spell check plugin
+
+The **spellcheck** plugin relies on the `pyspellchecker` library to detect
+misspelled words and underline them in red. Install it with:
+
+```sh
+pip install pyspellchecker
+```
+
+#### Auto-format plugin
+
+The **autoformat** plugin uses [Black](https://black.readthedocs.io/) to format
+Python code in the editor. Install Black with:
+
+```sh
+pip install black
+```
+
+#### Word frequency plugin
+
+The **freq_plot** plugin uses `matplotlib` to display a bar chart of the most
+common words in the current document. You can install matplotlib via:
+
+```sh
+pip install matplotlib
 ```
 
 ### Build & Run

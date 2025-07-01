@@ -86,6 +86,9 @@ class TuxpadGUI:
 
         tools_menu = tk.Menu(menubar, tearoff=0)
         tools_menu.add_command(label="Highlight", command=self.highlight)
+        tools_menu.add_command(label="Spell Check", command=self.spell_check)
+        tools_menu.add_command(label="Format Python", command=self.auto_format)
+        tools_menu.add_command(label="Word Frequency", command=self.word_frequency)
         tools_menu.add_command(label="Preferences", command=self.preferences)
         tools_menu.add_command(label="Plugins", command=self.plugins)
         tools_menu.add_command(label="Build & Run", command=self.build_run)
@@ -129,6 +132,15 @@ class TuxpadGUI:
 
     def highlight(self):
         self.plugin_manager.run_plugin('highlight')
+
+    def spell_check(self):
+        self.plugin_manager.run_plugin('spellcheck')
+
+    def auto_format(self):
+        self.plugin_manager.run_plugin('autoformat')
+
+    def word_frequency(self):
+        self.plugin_manager.run_plugin('freq_plot')
 
     def preferences(self):
         messagebox.showinfo("Preferences", "Preferences dialog not implemented yet.")
