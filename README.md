@@ -40,6 +40,8 @@ An **About** option under the Help menu summarizes these capabilities.
 A right-click context menu offers quick access to copy, paste, undo, redo and these tools. A status bar at the bottom shows the current cursor position and the editor autosaves periodically.
 
 On startup TuxPad briefly shows a welcome splash screen with a loading effect.
-While typing, newly inserted characters flash to help track cursor movement.
+The splash window mimics a Windows setup dialog with a blue theme and progress
+bar. While typing, newly inserted characters flash to help track cursor
+movement.
 
 Mousepad is traditionally a simple text editor for the Xfce desktop environment. TuxPad extends this idea in a lightweight form that should work on any Linux distribution.

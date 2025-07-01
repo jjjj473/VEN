@@ -9,17 +9,49 @@ from pygments.token import Token
 
 
 class SplashScreen(tk.Toplevel):
-    """Simple splash screen with welcome message and progress bar."""
+    """Splash screen styled like a Windows setup window."""
 
     def __init__(self, parent):
         super().__init__(parent)
-        self.title('Welcome')
-        self.geometry('300x150')
+        self.title('TuxPad Setup')
+        self.geometry('420x220')
         self.resizable(False, False)
-        label = tk.Label(self, text='Welcome to TuxPad', font=('Arial', 14))
-        label.pack(pady=20)
-        self.progress = ttk.Progressbar(self, mode='determinate', maximum=100)
-        self.progress.pack(fill=tk.X, padx=20)
+        self.configure(bg='#00337f')
+
+        label = tk.Label(
+            self,
+            text='Welcome to TuxPad Setup',
+            font=('Segoe UI', 16, 'bold'),
+            fg='white',
+            bg='#00337f',
+        )
+        label.pack(pady=30)
+
+        style = ttk.Style(self)
+        style.theme_use('clam')
+        style.configure(
+            'Setup.TProgressbar',
+            troughcolor='#e0e0e0',
+            background='#4a90e2',
+        )
+
+        self.progress = ttk.Progressbar(
+            self,
+            mode='determinate',
+            maximum=100,
+            style='Setup.TProgressbar',
+        )
+        self.progress.pack(fill=tk.X, padx=40, pady=10)
+
+        info = tk.Label(
+            self,
+            text='Preparing setup...',
+            font=('Segoe UI', 10),
+            fg='white',
+            bg='#00337f',
+        )
+        info.pack()
+
         self.after(100, self._animate)
 
     def _animate(self, value=0):
@@ -27,7 +59,7 @@ class SplashScreen(tk.Toplevel):
             self.destroy()
             return
         self.progress['value'] = value
-        self.after(20, self._animate, value + 5)
+        self.after(30, self._animate, value + 3)
 
 class TuxPad(tk.Tk):
     def __init__(self):
