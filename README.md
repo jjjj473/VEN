@@ -26,6 +26,10 @@ This launches a window with many editing features. Beyond open, save and find, t
 - Remove trailing spaces
 - Auto indent
 - Insert line numbers
+- Syntax highlighting for Python, JavaScript, HTML and C
+- Comment/uncomment selection
+- Convert between tabs and spaces
+- Run the current Python file
 
 A right-click context menu offers quick access to copy, paste, undo, redo and these tools. A status bar at the bottom shows the current cursor position and the editor autosaves periodically.
 

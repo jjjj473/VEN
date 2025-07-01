@@ -2,6 +2,9 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import os
+from pygments import lex
+from pygments.lexers import get_lexer_by_name
+from pygments.token import Token
 
 class AdvancedMousepad(tk.Tk):
     def __init__(self):
@@ -56,6 +59,19 @@ class AdvancedMousepad(tk.Tk):
         tools_menu.add_command(label='Remove Trailing Spaces', command=self.remove_trailing_spaces)
         tools_menu.add_command(label='Auto Indent', command=self.auto_indent)
         tools_menu.add_command(label='Insert Line Numbers', command=self.insert_line_numbers)
+        syntax_menu = tk.Menu(tools_menu, tearoff=0)
+        syntax_menu.add_command(label='Python', command=lambda: self.highlight_syntax('python'))
+        syntax_menu.add_command(label='JavaScript', command=lambda: self.highlight_syntax('javascript'))
+        syntax_menu.add_command(label='HTML', command=lambda: self.highlight_syntax('html'))
+        syntax_menu.add_command(label='C', command=lambda: self.highlight_syntax('c'))
+        tools_menu.add_cascade(label='Syntax Highlight', menu=syntax_menu)
+        tools_menu.add_command(label='Clear Highlighting', command=self.clear_highlighting)
+        tools_menu.add_separator()
+        tools_menu.add_command(label='Comment Selection', command=self.comment_selection)
+        tools_menu.add_command(label='Uncomment Selection', command=self.uncomment_selection)
+        tools_menu.add_command(label='Tabs to Spaces', command=self.tabs_to_spaces)
+        tools_menu.add_command(label='Spaces to Tabs', command=self.spaces_to_tabs)
+        tools_menu.add_command(label='Run Python', command=self.run_python)
         self.menubar.add_cascade(label='Tools', menu=tools_menu)
 
         self.status = tk.StringVar(value='Ln 1, Col 0')
@@ -76,6 +92,16 @@ class AdvancedMousepad(tk.Tk):
         self.context_menu.add_separator()
         self.context_menu.add_command(label='Search && Replace', command=self.search_replace)
         self.context_menu.add_command(label='Go To Line', command=self.goto_line)
+        syntax_sub = tk.Menu(self.context_menu, tearoff=0)
+        syntax_sub.add_command(label='Python', command=lambda: self.highlight_syntax('python'))
+        syntax_sub.add_command(label='JavaScript', command=lambda: self.highlight_syntax('javascript'))
+        syntax_sub.add_command(label='HTML', command=lambda: self.highlight_syntax('html'))
+        syntax_sub.add_command(label='C', command=lambda: self.highlight_syntax('c'))
+        self.context_menu.add_cascade(label='Syntax Highlight', menu=syntax_sub)
+        self.context_menu.add_command(label='Clear Highlighting', command=self.clear_highlighting)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label='Comment Selection', command=self.comment_selection)
+        self.context_menu.add_command(label='Uncomment Selection', command=self.uncomment_selection)
 
         self.config(menu=self.menubar)
 
@@ -255,6 +281,80 @@ class AdvancedMousepad(tk.Tk):
         numbered = [f"{i+1}: {l}" for i, l in enumerate(lines)]
         self.text.delete('1.0', tk.END)
         self.text.insert(tk.END, '\n'.join(numbered))
+
+    def highlight_syntax(self, lang):
+        data = self.text.get('1.0', tk.END)
+        for tag in self.text.tag_names():
+            if tag.startswith('Token'):
+                self.text.tag_delete(tag)
+        try:
+            lexer = get_lexer_by_name(lang)
+        except Exception:
+            messagebox.showerror('Error', f'Unsupported language: {lang}')
+            return
+        index = '1.0'
+        for ttype, value in lex(data, lexer):
+            end = self.text.index(f'{index}+{len(value)}c')
+            tag = str(ttype)
+            self.text.tag_add(tag, index, end)
+            index = end
+        self._configure_tags()
+
+    def clear_highlighting(self):
+        for tag in self.text.tag_names():
+            if tag.startswith('Token'):
+                self.text.tag_delete(tag)
+
+    def _configure_tags(self):
+        self.text.tag_configure('Token.Keyword', foreground='blue')
+        self.text.tag_configure('Token.Name.Builtin', foreground='purple')
+        self.text.tag_configure('Token.Comment', foreground='grey')
+        self.text.tag_configure('Token.String', foreground='green')
+        self.text.tag_configure('Token.Number', foreground='darkorange')
+        self.text.tag_configure('Token.Operator', foreground='red')
+
+    def comment_selection(self):
+        try:
+            start = self.text.index(tk.SEL_FIRST)
+            end = self.text.index(tk.SEL_LAST)
+        except tk.TclError:
+            return
+        lines = self.text.get(start, end).splitlines()
+        commented = ['# ' + l if not l.lstrip().startswith('#') else l for l in lines]
+        self.text.delete(start, end)
+        self.text.insert(start, '\n'.join(commented))
+
+    def uncomment_selection(self):
+        try:
+            start = self.text.index(tk.SEL_FIRST)
+            end = self.text.index(tk.SEL_LAST)
+        except tk.TclError:
+            return
+        lines = self.text.get(start, end).splitlines()
+        uncommented = [l[2:] if l.lstrip().startswith('#') else l for l in lines]
+        self.text.delete(start, end)
+        self.text.insert(start, '\n'.join(uncommented))
+
+    def tabs_to_spaces(self):
+        data = self.text.get('1.0', tk.END).replace('\t', '    ')
+        self.text.delete('1.0', tk.END)
+        self.text.insert('1.0', data)
+
+    def spaces_to_tabs(self):
+        data = self.text.get('1.0', tk.END).replace('    ', '\t')
+        self.text.delete('1.0', tk.END)
+        self.text.insert('1.0', data)
+
+    def run_python(self):
+        if not self.filename:
+            messagebox.showinfo('Run', 'Please save file before running.')
+            return
+        import subprocess, sys
+        try:
+            output = subprocess.check_output([sys.executable, self.filename], stderr=subprocess.STDOUT, text=True)
+            messagebox.showinfo('Output', output)
+        except Exception as e:
+            messagebox.showerror('Run Error', str(e))
 
     def _start_auto_save(self):
         if self.filename:
