@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "editor_features.h"
+#include "plugin_manager.h"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -17,21 +18,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Launch the Python GUI demonstrating various editor tools if a display is
-    // available. This prevents failures when $DISPLAY is not set, such as in
-    // headless environments.
-    const char *display = getenv("DISPLAY");
-    if (display && *display) {
-        const char *python = "./.venv/bin/python3";
-        if (access(python, X_OK) != 0) {
-            python = "python3";
-        }
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd), "%s scripts/editor_gui.py", python);
-        system(cmd);
-    } else {
-        printf("No DISPLAY found; skipping GUI launch.\n");
+    // Demonstrate running a plugin compiled as a shared library.
+    // This expects a plugin named plugins/wordcount.so implementing
+    // `void run(const char *filename);`
+    if (access("plugins/wordcount.so", R_OK) == 0) {
+        load_and_run_plugin("plugins/wordcount.so", filename);
     }
+
+    printf("Done.\n");
 
     return 0;
 }
