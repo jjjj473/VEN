@@ -18,22 +18,26 @@ Run the program by providing a file name:
 ```
 
 The program counts the number of lines in the given file and then demonstrates
-loading a plugin from `plugins/wordcount.so` if it exists. Plugins must export
-a `void run(const char *filename)` function. The provided wordcount plugin
-prints the number of words in the file.
+loading plugins from the `plugins/` directory if they exist. Plugins must
+export a `void run(const char *filename)` function. The provided plugins
+include a word counter as well as Linux tools that print system and disk
+information.
 
 ### Plugins
 
 Plugins are C shared libraries stored in the `plugins/` directory. Each library
 should define a `run` function accepting the file name to operate on. The
-`tuxpad` executable demonstrates loading `wordcount.so` after counting lines.
+`tuxpad` executable loads any available plugins after counting lines. Provided
+plugins include:
 
-Only the simple wordcount plugin is provided for now.
+* `wordcount.so` &ndash; counts words in the file
+* `sysinfo.so` &ndash; prints basic CPU and memory information
+* `diskusage.so` &ndash; shows disk usage for the file's filesystem
 
 ### Build & Run
 
-`make` will also build `plugins/wordcount.so` so running `./tuxpad FILE` will
-both count lines and, if the plugin exists, count words via the plugin.
+`make` also builds the example plugins so running `./tuxpad FILE` will count
+lines and then invoke any plugins found in the `plugins/` directory.
 
 ## Cleaning
 

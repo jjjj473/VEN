@@ -18,11 +18,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Demonstrate running a plugin compiled as a shared library.
-    // This expects a plugin named plugins/wordcount.so implementing
-    // `void run(const char *filename);`
+    // Run available plugins if present.
     if (access("plugins/wordcount.so", R_OK) == 0) {
         load_and_run_plugin("plugins/wordcount.so", filename);
+    }
+    if (access("plugins/sysinfo.so", R_OK) == 0) {
+        load_and_run_plugin("plugins/sysinfo.so", filename);
+    }
+    if (access("plugins/diskusage.so", R_OK) == 0) {
+        load_and_run_plugin("plugins/diskusage.so", filename);
     }
 
     printf("Done.\n");
