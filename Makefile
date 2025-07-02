@@ -25,3 +25,6 @@ plugins/diskusage.so: plugins/diskusage.c
 
 clean:
 	rm -f src/*.o tuxpad plugins/*.so
+
+gui: all
+	python3 scripts/editor_gui.py

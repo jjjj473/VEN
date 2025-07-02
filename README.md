@@ -39,6 +39,19 @@ plugins include:
 `make` also builds the example plugins so running `./tuxpad FILE` will count
 lines and then invoke any plugins found in the `plugins/` directory.
 
+## GUI
+
+An optional Tkinter interface is included for experimenting with the plugins.
+Build everything then launch the GUI with:
+
+```sh
+make gui
+```
+
+The GUI allows you to open a file and run the available plugins from the
+`Plugins` menu. If no graphical display is available the GUI will exit with a
+message.
+
 ## Cleaning
 
 To clean build artifacts run:
