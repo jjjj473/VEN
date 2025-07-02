@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "editor_features.h"
 
 int main(int argc, char **argv) {
@@ -21,7 +22,13 @@ int main(int argc, char **argv) {
     // headless environments.
     const char *display = getenv("DISPLAY");
     if (display && *display) {
-        system("python3 scripts/editor_gui.py");
+        const char *python = "./.venv/bin/python3";
+        if (access(python, X_OK) != 0) {
+            python = "python3";
+        }
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "%s scripts/editor_gui.py", python);
+        system(cmd);
     } else {
         printf("No DISPLAY found; skipping GUI launch.\n");
     }

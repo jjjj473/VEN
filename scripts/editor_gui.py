@@ -23,6 +23,18 @@ class PluginManager:
         return [f[:-3] for f in os.listdir(self.plugins_dir)
                 if f.endswith('.py') and f != '__init__.py']
 
+    def get_description(self, name):
+        """Return the first line of a plugin's docstring without importing it."""
+        import ast
+        path = os.path.join(self.plugins_dir, f"{name}.py")
+        try:
+            with open(path, 'r') as f:
+                tree = ast.parse(f.read(), filename=path)
+            doc = ast.get_docstring(tree)
+            return doc.splitlines()[0] if doc else ''
+        except Exception:
+            return ''
+
     def load_plugin(self, name):
         path = os.path.join(self.plugins_dir, f"{name}.py")
         if not os.path.exists(path):
@@ -45,10 +57,27 @@ class PluginManager:
     def open_window(self):
         win = tk.Toplevel(self.gui.root)
         win.title('Plugins')
-        lb = tk.Listbox(win)
+        frame = tk.Frame(win)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        lb = tk.Listbox(frame)
         for p in self.list_plugins():
             lb.insert(tk.END, p)
         lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        desc_var = tk.StringVar(frame)
+        desc_label = tk.Label(frame, textvariable=desc_var, wraplength=200, justify=tk.LEFT)
+        desc_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        def show_desc(event=None):
+            sel = lb.curselection()
+            if sel:
+                name = lb.get(sel[0])
+                desc_var.set(self.get_description(name))
+            else:
+                desc_var.set('')
+
+        lb.bind('<<ListboxSelect>>', show_desc)
 
         def run_selected():
             sel = lb.curselection()
@@ -57,7 +86,7 @@ class PluginManager:
                 self.run_plugin(name)
 
         run_btn = tk.Button(win, text='Run', command=run_selected)
-        run_btn.pack(side=tk.RIGHT)
+        run_btn.pack(side=tk.BOTTOM, pady=5)
 
 
 class TuxpadGUI:

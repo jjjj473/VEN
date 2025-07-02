@@ -38,6 +38,10 @@ make run FILE=path/to/file.txt
 
 If `FILE` is omitted it defaults to `README.md`.
 
+When running `tuxpad` directly, the program looks for `./.venv/bin/python3`
+and uses it if found. This means the GUI will automatically use the packages
+installed by `make venv` without needing to adjust your `PATH`.
+
 The program counts the number of lines in the file using a C++ helper and then
 launches a Python Tkinter GUI that demonstrates a dozen editor tools. If no
 graphical display is available (i.e. the `DISPLAY` variable is unset) the GUI
@@ -78,7 +82,8 @@ editor font size.
 Plugins are simple Python modules placed in the `plugins/` directory. Each
 plugin must provide a `run(gui)` function. The plugin manager (accessible from
 `Tools -> Plugins`) lists available plugins and lets you execute them on the
-current document.
+current document. Selecting a plugin shows its short description taken from the
+module's docstring.
 
 #### Highlight plugin
 
