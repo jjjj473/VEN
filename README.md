@@ -9,6 +9,9 @@ A lightweight desktop text editor written in C using GTK and GtkSourceView. It i
 - Convert selection to UPPERCASE or lowercase
 - Basic file open/save support
 - Right-click context menu for quick access to all actions
+- Menu bar with keyboard shortcuts
+- Adjustable font size via Preferences
+- Status bar showing cursor position
 
 ## Requirements
 - GTK+3 development files
@@ -31,5 +34,6 @@ This creates the `editor` binary.
 ```bash
 ./editor
 ```
-Right-click inside the editor to open a menu with actions like Open, Save, Undo,
-Redo and formatting commands.
+Use the menu bar or right-click context menu for actions like Open, Save, Undo
+and formatting. The status bar shows the current line and column. Open
+Preferences from the View menu to change the editor font size.
