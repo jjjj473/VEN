@@ -16,6 +16,20 @@ static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *ap
 static void update_status(GtkTextBuffer *buffer, App *app);
 static void on_preferences(GtkWidget *w, App *app);
 
+static void load_css(void) {
+    GtkCssProvider *provider = gtk_css_provider_new();
+    const gchar *css =
+        "* {font-family: Tahoma, sans-serif;}\n"
+        "window {background-color: #c0c0c0;}\n"
+        "menubar, menu, toolbar, statusbar {background-color: #d4d0c8;}\n"
+        "button {background-image: none; background-color: #f0f0f0; border: 1px solid #808080;}\n"
+        "textview {background-color: white;}";
+    gtk_css_provider_load_from_data(provider, css, -1, NULL);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+            GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
+}
+
 static void on_open(GtkWidget *w, App *app) {
     GtkWidget *dlg = gtk_file_chooser_dialog_new("Open File",
             GTK_WINDOW(app->window), GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -197,6 +211,7 @@ static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *ap
 
 static void activate(GtkApplication *app_g, gpointer user_data) {
     App *app = user_data;
+    load_css();
     app->window = gtk_application_window_new(app_g);
     gtk_window_set_title(GTK_WINDOW(app->window), "VEN Editor");
     gtk_window_set_default_size(GTK_WINDOW(app->window), 800, 600);
