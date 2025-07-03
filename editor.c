@@ -9,6 +9,8 @@ typedef struct {
     GtkTextTag *italic_tag;
 } App;
 
+static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *app);
+
 static void on_open(GtkWidget *w, App *app) {
     GtkWidget *dlg = gtk_file_chooser_dialog_new("Open File",
             GTK_WINDOW(app->window), GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -114,6 +116,47 @@ static void on_find_replace(GtkWidget *w, App *app) {
     gtk_widget_destroy(dialog);
 }
 
+static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *app) {
+    if (event->type == GDK_BUTTON_PRESS && event->button == GDK_BUTTON_SECONDARY) {
+        GtkWidget *menu = gtk_menu_new();
+
+        GtkWidget *mi_open = gtk_menu_item_new_with_label("Open");
+        GtkWidget *mi_save = gtk_menu_item_new_with_label("Save");
+        GtkWidget *mi_undo = gtk_menu_item_new_with_label("Undo");
+        GtkWidget *mi_redo = gtk_menu_item_new_with_label("Redo");
+        GtkWidget *mi_find = gtk_menu_item_new_with_label("Find/Replace");
+        GtkWidget *mi_upper = gtk_menu_item_new_with_label("Uppercase");
+        GtkWidget *mi_lower = gtk_menu_item_new_with_label("Lowercase");
+        GtkWidget *mi_bold = gtk_menu_item_new_with_label("Bold");
+        GtkWidget *mi_italic = gtk_menu_item_new_with_label("Italic");
+
+        g_signal_connect(mi_open, "activate", G_CALLBACK(on_open), app);
+        g_signal_connect(mi_save, "activate", G_CALLBACK(on_save), app);
+        g_signal_connect(mi_undo, "activate", G_CALLBACK(on_undo), app);
+        g_signal_connect(mi_redo, "activate", G_CALLBACK(on_redo), app);
+        g_signal_connect(mi_find, "activate", G_CALLBACK(on_find_replace), app);
+        g_signal_connect(mi_upper, "activate", G_CALLBACK(on_upper), app);
+        g_signal_connect(mi_lower, "activate", G_CALLBACK(on_lower), app);
+        g_signal_connect(mi_bold, "activate", G_CALLBACK(on_bold), app);
+        g_signal_connect(mi_italic, "activate", G_CALLBACK(on_italic), app);
+
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_open);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_save);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_undo);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_redo);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_find);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_upper);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_lower);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_bold);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_italic);
+
+        gtk_widget_show_all(menu);
+        gtk_menu_popup_at_pointer(GTK_MENU(menu), (GdkEvent*)event);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static void activate(GtkApplication *app_g, gpointer user_data) {
     App *app = user_data;
     app->window = gtk_application_window_new(app_g);
@@ -167,6 +210,8 @@ static void activate(GtkApplication *app_g, gpointer user_data) {
     g_signal_connect(btn_low, "clicked", G_CALLBACK(on_lower), app);
     g_signal_connect(btn_bold, "clicked", G_CALLBACK(on_bold), app);
     g_signal_connect(btn_italic, "clicked", G_CALLBACK(on_italic), app);
+
+    g_signal_connect(app->view, "button-press-event", G_CALLBACK(on_right_click), app);
 
     gtk_widget_show_all(app->window);
 }

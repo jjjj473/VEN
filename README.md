@@ -8,6 +8,7 @@ A lightweight desktop text editor written in C using GTK and GtkSourceView. It i
 - Format selected text as **bold** or *italic*
 - Convert selection to UPPERCASE or lowercase
 - Basic file open/save support
+- Right-click context menu for quick access to all actions
 
 ## Requirements
 - GTK+3 development files
@@ -30,3 +31,5 @@ This creates the `editor` binary.
 ```bash
 ./editor
 ```
+Right-click inside the editor to open a menu with actions like Open, Save, Undo,
+Redo and formatting commands.
