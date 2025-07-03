@@ -1,45 +1,32 @@
-# VEN Text Editor Suite
+# VEN Text Editor
 
-This project demonstrates a minimal text editor that can be used from the
-web or a desktop program. A small FastAPI backend stores the text so that
-both interfaces stay in sync.
+A lightweight desktop text editor written in C using GTK and GtkSourceView. It is intended to run on many Linux distributions including Ubuntu, Debian, Fedora, openSUSE, Arch, Manjaro, Linux Mint, Elementary OS, Slackware and Gentoo.
 
-## Components
+## Features
+- Undo and redo
+- Find and replace
+- Format selected text as **bold** or *italic*
+- Convert selection to UPPERCASE or lowercase
+- Basic file open/save support
 
-- **backend.py**: FastAPI server serving the web editor and a JSON API.
-- **index.html**: Simple web-based text editor using `fetch` to load and
-  save text.
-- **client.c**: Tiny desktop program built with `libcurl` that retrieves
-  or updates the text via the backend API.
+## Requirements
+- GTK+3 development files
+- GtkSourceView 3.0 development files
+- GCC and pkg-config
 
-## Setup
-
-1. Install Python dependencies:
-
+Debian-based systems can install these via:
 ```bash
-python3 -m pip install -r requirements.txt
+sudo apt-get install build-essential libgtk-3-dev libgtksourceview-3.0-dev
 ```
 
-2. Run the backend:
-
-```bash
-uvicorn backend:app --reload
-```
-
-3. Open `http://localhost:8000` in your browser to use the web editor.
-
-4. Build the C client (requires `gcc` and `libcurl`):
-
+## Building
+Run:
 ```bash
 make
 ```
+This creates the `editor` binary.
 
-5. Use the client to get or set text:
-
+## Running
 ```bash
-./client get
-./client set "Hello world"
+./editor
 ```
-
-Both the desktop client and the web page share the same text data through
-the Python backend.
