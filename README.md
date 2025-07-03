@@ -38,3 +38,7 @@ This creates the `editor` binary.
 Use the menu bar or right-click context menu for actions like Open, Save, Undo
 and formatting. The status bar shows the current line and column. Open
 Preferences from the View menu to change the editor font size.
+
+The program requires an X11/Wayland display. If the `DISPLAY` environment
+variable is not set, the editor will exit with an error message instead of
+crashing.

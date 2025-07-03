@@ -17,15 +17,19 @@ static void update_status(GtkTextBuffer *buffer, App *app);
 static void on_preferences(GtkWidget *w, App *app);
 
 static void load_css(void) {
+    GdkScreen *screen = gdk_screen_get_default();
+    if (!screen)
+        return;
     GtkCssProvider *provider = gtk_css_provider_new();
     const gchar *css =
         "* {font-family: Tahoma, sans-serif;}\n"
         "window {background-color: #c0c0c0;}\n"
         "menubar, menu, toolbar, statusbar {background-color: #d4d0c8;}\n"
         "button {background-image: none; background-color: #f0f0f0; border: 1px solid #808080;}\n"
-        "textview {background-color: white;}";
+        "textview {background-color: white;}\n"
+        "statusbar {padding: 2px;}";
     gtk_css_provider_load_from_data(provider, css, -1, NULL);
-    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+    gtk_style_context_add_provider_for_screen(screen,
             GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
 }
@@ -356,7 +360,13 @@ int main(int argc, char **argv) {
     GtkApplication *app_g;
     int status;
     App app = {0};
-    app_g = gtk_application_new("com.example.veneditor", G_APPLICATION_FLAGS_NONE);
+    const char *display = g_getenv("DISPLAY");
+    if (!display || !*display) {
+        g_printerr("DISPLAY not set. Unable to launch GUI.\n");
+        return 1;
+    }
+
+    app_g = gtk_application_new("com.example.veneditor", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app_g, "activate", G_CALLBACK(activate), &app);
     status = g_application_run(G_APPLICATION(app_g), argc, argv);
     g_object_unref(app_g);
