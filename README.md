@@ -1,18 +1,45 @@
-# VEN
-VEN is a code editor built like Vim but has more to offer.
+# VEN Text Editor Suite
 
-## TypeScript video demo server
+This project demonstrates a minimal text editor that can be used from the
+web or a desktop program. A small FastAPI backend stores the text so that
+both interfaces stay in sync.
 
-The Python backend has been replaced with a minimal Node.js server
-written in TypeScript. It serves an HTML page with a simple video
-player, allowing uploads and playlist management.
+## Components
 
-### Running
+- **backend.py**: FastAPI server serving the web editor and a JSON API.
+- **index.html**: Simple web-based text editor using `fetch` to load and
+  save text.
+- **client.c**: Tiny desktop program built with `libcurl` that retrieves
+  or updates the text via the backend API.
+
+## Setup
+
+1. Install Python dependencies:
 
 ```bash
-npm install
-npm run start
+python3 -m pip install -r requirements.txt
 ```
 
-Open <http://localhost:8000> in your browser to use the player.
-Uploaded files are stored in the `videos` directory.
+2. Run the backend:
+
+```bash
+uvicorn backend:app --reload
+```
+
+3. Open `http://localhost:8000` in your browser to use the web editor.
+
+4. Build the C client (requires `gcc` and `libcurl`):
+
+```bash
+make
+```
+
+5. Use the client to get or set text:
+
+```bash
+./client get
+./client set "Hello world"
+```
+
+Both the desktop client and the web page share the same text data through
+the Python backend.
