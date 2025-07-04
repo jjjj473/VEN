@@ -31,9 +31,30 @@ static void load_css(void) {
     const gchar *css =
         "* {font-family: Tahoma, sans-serif;}\n"
         "window {background-color: #c0c0c0;}\n"
-        "menubar, menu, toolbar, statusbar {background-color: #d4d0c8;}\n"
-        "button {background-image: none; background-color: #f0f0f0; border: 1px solid #808080;}\n"
-        "textview {background-color: white;}\n"
+        "menubar, menu, toolbar, statusbar {"
+        "  background-color: #d4d0c8;"
+        "  border: 2px outset #ffffff;"
+        "}\n"
+        "button {"
+        "  background-image: none;"
+        "  background-color: #e0e0e0;"
+        "  border: 2px outset #ffffff;"
+        "  padding: 2px 6px;"
+        "}\n"
+        "textview {"
+        "  background-color: white;"
+        "  border: 2px inset #808080;"
+        "}\n"
+        "entry, spinbutton, treeview {"
+        "  background-color: white;"
+        "}\n"
+        "scrolledwindow {"
+        "  border: 2px inset #808080;"
+        "}\n"
+        "menuitem:hover {"
+        "  background-color: #0a246a;"
+        "  color: white;"
+        "}\n"
         "statusbar {padding: 2px;}";
     gtk_css_provider_load_from_data(provider, css, -1, NULL);
     gtk_style_context_add_provider_for_screen(screen,
@@ -422,6 +443,7 @@ static void activate(GtkApplication *app_g, gpointer user_data) {
     app->italic_tag = gtk_text_buffer_create_tag(GTK_TEXT_BUFFER(app->buffer), "italic", "style", PANGO_STYLE_ITALIC, NULL);
 
     GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_set_name(toolbar, "toolbar");
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
 
     GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);

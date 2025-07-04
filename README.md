@@ -1,6 +1,7 @@
 # VEN Text Editor
 
 A lightweight desktop text editor written in C using GTK and GtkSourceView. It is intended to run on many Linux distributions including Ubuntu, Debian, Fedora, openSUSE, Arch, Manjaro, Linux Mint, Elementary OS, Slackware and Gentoo.
+The interface emulates the classic Windows 2000 look with gray gradients and beveled controls.
 
 ## Features
 - Undo and redo
@@ -12,7 +13,7 @@ A lightweight desktop text editor written in C using GTK and GtkSourceView. It i
 - Menu bar with keyboard shortcuts
 - Adjustable font size via Preferences
 - Status bar showing cursor position
-- Optional Windows 2000 style theme for a retro look
+- Complete Windows 2000 style theme with beveled widgets
 - Built-in task manager dialog accessible from the View menu
 
 ## Requirements
