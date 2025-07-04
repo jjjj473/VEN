@@ -10,11 +10,14 @@ typedef struct {
     GtkWidget *status;
     guint status_ctx;
     int font_size;
+    GtkCssProvider *font_provider;
 } App;
 
 static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *app);
 static void update_status(GtkTextBuffer *buffer, App *app);
 static void on_preferences(GtkWidget *w, App *app);
+static void update_font(App *app);
+static void on_task_manager(GtkWidget *w, App *app);
 
 static void load_css(void) {
     GdkScreen *screen = gdk_screen_get_default();
@@ -32,6 +35,16 @@ static void load_css(void) {
     gtk_style_context_add_provider_for_screen(screen,
             GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
+}
+
+static void update_font(App *app) {
+    if (!app->font_provider)
+        return;
+    char css[64];
+    g_snprintf(css, sizeof(css),
+               "#editor_view { font-size: %dpt; }",
+               app->font_size);
+    gtk_css_provider_load_from_data(app->font_provider, css, -1, NULL);
 }
 
 static void on_open(GtkWidget *w, App *app) {
@@ -164,12 +177,17 @@ static void on_preferences(GtkWidget *w, App *app) {
     gtk_widget_show_all(dlg);
     if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT) {
         app->font_size = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin));
-        PangoFontDescription *desc = pango_font_description_new();
-        pango_font_description_set_size(desc, app->font_size * PANGO_SCALE);
-        gtk_widget_override_font(app->view, desc);
-        pango_font_description_free(desc);
+        update_font(app);
     }
     gtk_widget_destroy(dlg);
+}
+
+static void on_task_manager(GtkWidget *w, App *app) {
+    GError *err = NULL;
+    if (!g_spawn_command_line_async("gnome-system-monitor", &err)) {
+        g_clear_error(&err);
+        g_spawn_command_line_async("xterm -e top", NULL);
+    }
 }
 
 static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *app) {
@@ -185,6 +203,7 @@ static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *ap
         GtkWidget *mi_lower = gtk_menu_item_new_with_label("Lowercase");
         GtkWidget *mi_bold = gtk_menu_item_new_with_label("Bold");
         GtkWidget *mi_italic = gtk_menu_item_new_with_label("Italic");
+        GtkWidget *mi_task = gtk_menu_item_new_with_label("Task Manager");
 
         g_signal_connect(mi_open, "activate", G_CALLBACK(on_open), app);
         g_signal_connect(mi_save, "activate", G_CALLBACK(on_save), app);
@@ -195,6 +214,7 @@ static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *ap
         g_signal_connect(mi_lower, "activate", G_CALLBACK(on_lower), app);
         g_signal_connect(mi_bold, "activate", G_CALLBACK(on_bold), app);
         g_signal_connect(mi_italic, "activate", G_CALLBACK(on_italic), app);
+        g_signal_connect(mi_task, "activate", G_CALLBACK(on_task_manager), app);
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_open);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_save);
@@ -205,6 +225,7 @@ static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *ap
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_lower);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_bold);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_italic);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi_task);
 
         gtk_widget_show_all(menu);
         gtk_menu_popup_at_pointer(GTK_MENU(menu), (GdkEvent*)event);
@@ -296,13 +317,19 @@ static void activate(GtkApplication *app_g, gpointer user_data) {
     g_signal_connect(mi_prefs, "activate", G_CALLBACK(on_preferences), app);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), mi_prefs);
 
+    GtkWidget *mi_task = gtk_menu_item_new_with_label("Task Manager");
+    g_signal_connect(mi_task, "activate", G_CALLBACK(on_task_manager), app);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), mi_task);
+
     app->view = gtk_source_view_new();
     app->buffer = GTK_SOURCE_BUFFER(gtk_text_view_get_buffer(GTK_TEXT_VIEW(app->view)));
     gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(app->view), TRUE);
-    PangoFontDescription *desc_def = pango_font_description_new();
-    pango_font_description_set_size(desc_def, app->font_size * PANGO_SCALE);
-    gtk_widget_override_font(app->view, desc_def);
-    pango_font_description_free(desc_def);
+    gtk_widget_set_name(app->view, "editor_view");
+    app->font_provider = gtk_css_provider_new();
+    gtk_style_context_add_provider(gtk_widget_get_style_context(app->view),
+            GTK_STYLE_PROVIDER(app->font_provider),
+            GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    update_font(app);
 
     app->bold_tag = gtk_text_buffer_create_tag(GTK_TEXT_BUFFER(app->buffer), "bold", "weight", PANGO_WEIGHT_BOLD, NULL);
     app->italic_tag = gtk_text_buffer_create_tag(GTK_TEXT_BUFFER(app->buffer), "italic", "style", PANGO_STYLE_ITALIC, NULL);
@@ -370,6 +397,8 @@ int main(int argc, char **argv) {
     g_signal_connect(app_g, "activate", G_CALLBACK(activate), &app);
     status = g_application_run(G_APPLICATION(app_g), argc, argv);
     g_object_unref(app_g);
+    if (app.font_provider)
+        g_object_unref(app.font_provider);
     return status;
 }
 

@@ -13,6 +13,7 @@ A lightweight desktop text editor written in C using GTK and GtkSourceView. It i
 - Adjustable font size via Preferences
 - Status bar showing cursor position
 - Optional Windows 2000 style theme for a retro look
+- Launch the system task manager from the View menu
 
 ## Requirements
 - GTK+3 development files
