@@ -13,7 +13,7 @@ A lightweight desktop text editor written in C using GTK and GtkSourceView. It i
 - Adjustable font size via Preferences
 - Status bar showing cursor position
 - Optional Windows 2000 style theme for a retro look
-- Launch the system task manager from the View menu
+- Built-in task manager dialog accessible from the View menu
 
 ## Requirements
 - GTK+3 development files
@@ -38,7 +38,9 @@ This creates the `editor` binary.
 ```
 Use the menu bar or right-click context menu for actions like Open, Save, Undo
 and formatting. The status bar shows the current line and column. Open
-Preferences from the View menu to change the editor font size.
+Preferences from the View menu to change the editor font size. Use the Task
+Manager from the same menu to monitor running processes and terminate
+unresponsive ones.
 
 The program requires an X11/Wayland display. If the `DISPLAY` environment
 variable is not set, the editor will exit with an error message instead of

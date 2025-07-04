@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
+#include <signal.h>
 
 typedef struct {
     GtkWidget *window;
@@ -18,6 +19,9 @@ static void update_status(GtkTextBuffer *buffer, App *app);
 static void on_preferences(GtkWidget *w, App *app);
 static void update_font(App *app);
 static void on_task_manager(GtkWidget *w, App *app);
+static void refresh_process_list(GtkListStore *store);
+static void on_kill_process(GtkButton *button, gpointer user_data);
+static void show_task_manager(App *app);
 
 static void load_css(void) {
     GdkScreen *screen = gdk_screen_get_default();
@@ -183,11 +187,94 @@ static void on_preferences(GtkWidget *w, App *app) {
 }
 
 static void on_task_manager(GtkWidget *w, App *app) {
+    show_task_manager(app);
+}
+
+typedef struct {
+    GtkTreeSelection *selection;
+    GtkListStore *store;
+} KillData;
+
+static void refresh_process_list(GtkListStore *store) {
+    gtk_list_store_clear(store);
+    gchar *out = NULL;
     GError *err = NULL;
-    if (!g_spawn_command_line_async("gnome-system-monitor", &err)) {
+    if (g_spawn_command_line_sync("ps -eo pid,comm,%cpu,%mem --no-headers", &out, NULL, NULL, &err)) {
+        char **lines = g_strsplit(out, "\n", -1);
+        for (int i = 0; lines[i]; i++) {
+            char pid[16], comm[256], cpu[16], mem[16];
+            if (sscanf(lines[i], "%15s %255s %15s %15s", pid, comm, cpu, mem) == 4) {
+                GtkTreeIter it;
+                gtk_list_store_append(store, &it);
+                gtk_list_store_set(store, &it,
+                                   0, pid,
+                                   1, comm,
+                                   2, cpu,
+                                   3, mem,
+                                   -1);
+            }
+        }
+        g_strfreev(lines);
+        g_free(out);
+    } else {
+        g_warning("Failed to run ps: %s", err->message);
         g_clear_error(&err);
-        g_spawn_command_line_async("xterm -e top", NULL);
     }
+}
+
+static void on_kill_process(GtkButton *button, gpointer user_data) {
+    KillData *data = user_data;
+    GtkTreeIter iter;
+    if (gtk_tree_selection_get_selected(data->selection, NULL, &iter)) {
+        gchar *pid_str;
+        gtk_tree_model_get(GTK_TREE_MODEL(data->store), &iter, 0, &pid_str, -1);
+        int pid = atoi(pid_str);
+        g_free(pid_str);
+        if (pid > 0)
+            kill(pid, SIGTERM);
+        refresh_process_list(data->store);
+    }
+}
+
+static void show_task_manager(App *app) {
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Task Manager",
+            GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
+            "_Close", GTK_RESPONSE_CLOSE,
+            NULL);
+    GtkWidget *box = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkListStore *store = gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    GtkWidget *view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), 0, "PID",
+            gtk_cell_renderer_text_new(), "text", 0, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), 1, "Command",
+            gtk_cell_renderer_text_new(), "text", 1, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), 2, "CPU%",
+            gtk_cell_renderer_text_new(), "text", 2, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), 3, "MEM%",
+            gtk_cell_renderer_text_new(), "text", 3, NULL);
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(scrolled), view);
+    gtk_widget_set_vexpand(scrolled, TRUE);
+    gtk_widget_set_hexpand(scrolled, TRUE);
+    gtk_box_pack_start(GTK_BOX(box), scrolled, TRUE, TRUE, 0);
+
+    GtkWidget *btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    GtkWidget *refresh = gtk_button_new_with_label("Refresh");
+    GtkWidget *kill_btn = gtk_button_new_with_label("Kill Process");
+    gtk_box_pack_end(GTK_BOX(btn_box), kill_btn, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(btn_box), refresh, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), btn_box, FALSE, FALSE, 4);
+
+    GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(view));
+    KillData kd = { sel, store };
+    g_signal_connect(kill_btn, "clicked", G_CALLBACK(on_kill_process), &kd);
+    g_signal_connect_swapped(refresh, "clicked", G_CALLBACK(refresh_process_list), store);
+
+    refresh_process_list(store);
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    g_object_unref(store);
 }
 
 static gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, App *app) {
