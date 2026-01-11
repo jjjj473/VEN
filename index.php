@@ -13,6 +13,11 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $videos = [];
+$videoStmt = $db->prepare('SELECT videos.id, videos.title, videos.description, videos.views, videos.created_at, users.username FROM videos JOIN users ON videos.user_id = users.id ORDER BY videos.created_at DESC LIMIT 8');
+$videoResult = $videoStmt->execute();
+while ($row = $videoResult->fetchArray(SQLITE3_ASSOC)) {
+    $videos[] = $row;
+}
 
 $qrLoginUrl = null;
 if ($user) {
@@ -208,6 +213,12 @@ if ($user) {
             font-size: 13px;
         }
 
+        .video-desc {
+            font-size: 12px;
+            color: #cfcfcf;
+            line-height: 1.4;
+        }
+
         .empty-state {
             background: var(--card);
             border-radius: 18px;
@@ -342,10 +353,10 @@ if ($user) {
         <div class="nav-card">
             <h3>Creator Tools</h3>
             <ul>
-                <li>Upload Studio</li>
-                <li>Live Control Room</li>
-                <li>Analytics</li>
-                <li>Brand Collaborations</li>
+                <li><a class="pill" href="upload.php">Upload Studio</a></li>
+                <li><a class="pill" href="library.php">Video Library</a></li>
+                <li><a class="pill" href="dashboard.php">Creator Dashboard</a></li>
+                <li><a class="pill" href="settings.php">Account Settings</a></li>
             </ul>
         </div>
         <?php if ($user): ?>
@@ -368,6 +379,7 @@ if ($user) {
                 <div class="empty-state">
                     <h4>No videos yet</h4>
                     <p>Start uploading to build your ATF library.</p>
+                    <p><a class="pill" href="upload.php">Upload your first video</a></p>
                 </div>
             <?php else: ?>
                 <?php foreach ($videos as $index => $video): ?>
@@ -375,8 +387,9 @@ if ($user) {
                         <div class="thumb">ATF Video <?php echo $index + 1; ?></div>
                         <div class="video-info">
                             <h4><?php echo htmlspecialchars($video['title']); ?></h4>
-                            <div class="video-meta"><?php echo htmlspecialchars($video['creator']); ?></div>
-                            <div class="video-meta"><?php echo htmlspecialchars($video['views']); ?> · <?php echo htmlspecialchars($video['time']); ?></div>
+                            <div class="video-meta">by <?php echo htmlspecialchars($video['username']); ?></div>
+                            <div class="video-desc"><?php echo htmlspecialchars($video['description']); ?></div>
+                            <div class="video-meta"><?php echo number_format((int) $video['views']); ?> views · <?php echo htmlspecialchars(date('M j, Y', strtotime($video['created_at']))); ?></div>
                         </div>
                     </article>
                 <?php endforeach; ?>
