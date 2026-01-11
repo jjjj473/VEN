@@ -1,0 +1,429 @@
+<?php
+session_start();
+require_once __DIR__ . '/db.php';
+
+$db = get_db();
+$user = null;
+
+if (isset($_SESSION['user_id'])) {
+    $stmt = $db->prepare('SELECT id, username, qr_token FROM users WHERE id = :id');
+    $stmt->bindValue(':id', $_SESSION['user_id'], SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $user = $result->fetchArray(SQLITE3_ASSOC) ?: null;
+}
+
+$videos = [];
+
+$qrLoginUrl = null;
+if ($user) {
+    $qrLoginUrl = sprintf('%s://%s%s/qr_login.php?token=%s',
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http',
+        $_SERVER['HTTP_HOST'],
+        rtrim(dirname($_SERVER['PHP_SELF']), '/'),
+        urlencode($user['qr_token'])
+    );
+}
+?>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATF | Media Platform</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #0f0f0f;
+            --card: #1c1c1c;
+            --muted: #aaaaaa;
+            --accent: #ff1a1a;
+            --text: #ffffff;
+            --outline: #2b2b2b;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--outline);
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 15, 0.92);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--accent);
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .search {
+            flex: 1;
+            max-width: 520px;
+            margin: 0 32px;
+            display: flex;
+            align-items: center;
+            background: #181818;
+            border-radius: 999px;
+            padding: 10px 18px;
+            border: 1px solid var(--outline);
+        }
+
+        .search input {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            width: 100%;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .pill {
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: #232323;
+            border: 1px solid var(--outline);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 24px;
+            padding: 28px 32px 48px;
+        }
+
+        aside {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .nav-card {
+            background: var(--card);
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid var(--outline);
+        }
+
+        .nav-card h3 {
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .nav-card ul {
+            list-style: none;
+            display: grid;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .content-header h2 {
+            font-size: 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .video-card {
+            background: var(--card);
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid var(--outline);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .thumb {
+            height: 150px;
+            background: linear-gradient(135deg, #2b2b2b, #3a1a1a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .video-info {
+            padding: 16px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .video-info h4 {
+            font-size: 15px;
+        }
+
+        .video-meta {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .empty-state {
+            background: var(--card);
+            border-radius: 18px;
+            border: 1px dashed var(--outline);
+            padding: 32px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .auth-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--outline);
+            display: grid;
+            gap: 16px;
+        }
+
+        .auth-card h3 {
+            font-size: 16px;
+        }
+
+        .auth-card form {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--outline);
+            background: #141414;
+            color: var(--text);
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .qr-card {
+            display: grid;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .qr-card img {
+            width: 180px;
+            height: 180px;
+            border-radius: 12px;
+            border: 1px solid var(--outline);
+            background: #fff;
+        }
+
+        .success {
+            color: #6ee7b7;
+            font-size: 13px;
+        }
+
+        .error {
+            color: #fca5a5;
+            font-size: 13px;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 960px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+
+            .search {
+                order: 3;
+                margin: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="brand">
+        <div class="logo">ATF</div>
+        <div>
+            <strong>ATF Media</strong><br>
+            <span class="muted">Stream. Create. Connect.</span>
+        </div>
+    </div>
+    <div class="search">
+        <input type="text" placeholder="Search videos, creators, or topics...">
+    </div>
+    <div class="header-actions">
+        <?php if ($user): ?>
+            <span class="pill">Hi, <?php echo htmlspecialchars($user['username']); ?></span>
+            <a class="pill" href="logout.php">Logout</a>
+        <?php else: ?>
+            <span class="pill">Guest</span>
+        <?php endif; ?>
+    </div>
+</header>
+<main>
+    <aside>
+        <div class="nav-card">
+            <h3>Quick Access</h3>
+            <ul>
+                <li>Home Feed</li>
+                <li>Trending Now</li>
+                <li>Subscriptions</li>
+                <li>ATF Originals</li>
+                <li>Watch Later</li>
+            </ul>
+        </div>
+        <div class="nav-card">
+            <h3>Creator Tools</h3>
+            <ul>
+                <li>Upload Studio</li>
+                <li>Live Control Room</li>
+                <li>Analytics</li>
+                <li>Brand Collaborations</li>
+            </ul>
+        </div>
+        <?php if ($user): ?>
+            <div class="nav-card qr-card">
+                <h3>Login on your phone</h3>
+                <p class="muted">Scan this QR code to sign in instantly.</p>
+                <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=<?php echo urlencode($qrLoginUrl); ?>" alt="QR code for login">
+                <p class="muted">Link: <?php echo htmlspecialchars($qrLoginUrl); ?></p>
+            </div>
+        <?php endif; ?>
+    </aside>
+
+    <section>
+        <div class="content-header">
+            <h2>ATF Home</h2>
+            <span class="muted">Personalized for you</span>
+        </div>
+        <div class="grid">
+            <?php if (count($videos) === 0): ?>
+                <div class="empty-state">
+                    <h4>No videos yet</h4>
+                    <p>Start uploading to build your ATF library.</p>
+                </div>
+            <?php else: ?>
+                <?php foreach ($videos as $index => $video): ?>
+                    <article class="video-card">
+                        <div class="thumb">ATF Video <?php echo $index + 1; ?></div>
+                        <div class="video-info">
+                            <h4><?php echo htmlspecialchars($video['title']); ?></h4>
+                            <div class="video-meta"><?php echo htmlspecialchars($video['creator']); ?></div>
+                            <div class="video-meta"><?php echo htmlspecialchars($video['views']); ?> · <?php echo htmlspecialchars($video['time']); ?></div>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section>
+        <div class="content-header">
+            <h2><?php echo $user ? 'Welcome back' : 'Join ATF'; ?></h2>
+            <span class="muted">Secure login & signup</span>
+        </div>
+        <div class="auth-card">
+            <?php if (isset($_GET['success'])): ?>
+                <div class="success">Account created! You can log in now.</div>
+            <?php elseif (isset($_GET['error'])): ?>
+                <div class="error"><?php echo htmlspecialchars($_GET['error']); ?></div>
+            <?php endif; ?>
+
+            <?php if (!$user): ?>
+                <div>
+                    <h3>Log in</h3>
+                    <form method="post" action="auth.php">
+                        <input type="hidden" name="action" value="login">
+                        <label>Username</label>
+                        <input type="text" name="username" required>
+                        <label>Password</label>
+                        <input type="password" name="password" required>
+                        <button type="submit">Log in</button>
+                    </form>
+                </div>
+                <div>
+                    <h3>Create an account</h3>
+                    <form method="post" action="auth.php">
+                        <input type="hidden" name="action" value="signup">
+                        <label>Username</label>
+                        <input type="text" name="username" required>
+                        <label>Password</label>
+                        <input type="password" name="password" required>
+                        <button type="submit">Sign up</button>
+                    </form>
+                </div>
+            <?php else: ?>
+                <p class="muted">You are signed in. Use the QR code to log in on another phone or tablet.</p>
+            <?php endif; ?>
+        </div>
+    </section>
+</main>
+</body>
+</html>
