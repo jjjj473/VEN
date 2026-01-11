@@ -20,8 +20,43 @@ if (!$user) {
 $messages = [];
 $errors = [];
 
+$profileStmt = $db->prepare('SELECT display_name, bio, location, theme FROM profiles WHERE user_id = :user_id');
+$profileStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+$profileResult = $profileStmt->execute();
+$profile = $profileResult->fetchArray(SQLITE3_ASSOC) ?: [
+    'display_name' => $user['username'],
+    'bio' => '',
+    'location' => '',
+    'theme' => 'midnight'
+];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    if ($action === 'update_profile') {
+        $displayName = trim($_POST['display_name'] ?? '');
+        $bio = trim($_POST['bio'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $theme = trim($_POST['theme'] ?? 'midnight');
+
+        if ($displayName === '') {
+            $errors[] = 'Display name is required.';
+        } else {
+            $updateProfile = $db->prepare('INSERT INTO profiles (user_id, display_name, bio, location, theme) VALUES (:user_id, :display_name, :bio, :location, :theme)
+                ON CONFLICT(user_id) DO UPDATE SET display_name = excluded.display_name, bio = excluded.bio, location = excluded.location, theme = excluded.theme');
+            $updateProfile->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+            $updateProfile->bindValue(':display_name', $displayName, SQLITE3_TEXT);
+            $updateProfile->bindValue(':bio', $bio, SQLITE3_TEXT);
+            $updateProfile->bindValue(':location', $location, SQLITE3_TEXT);
+            $updateProfile->bindValue(':theme', $theme, SQLITE3_TEXT);
+            $updateProfile->execute();
+            $messages[] = 'Profile updated.';
+            $profile['display_name'] = $displayName;
+            $profile['bio'] = $bio;
+            $profile['location'] = $location;
+            $profile['theme'] = $theme;
+        }
+    }
 
     if ($action === 'regenerate_qr') {
         $newToken = bin2hex(random_bytes(16));
@@ -121,6 +156,12 @@ $qrLoginUrl = sprintf('%s://%s%s/qr_login.php?token=%s',
             grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         }
 
+        .form-grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
         .card {
             background: var(--card);
             border-radius: 16px;
@@ -142,6 +183,20 @@ $qrLoginUrl = sprintf('%s://%s%s/qr_login.php?token=%s',
             border: 1px solid var(--outline);
             background: #141414;
             color: var(--text);
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--outline);
+            background: #141414;
+            color: var(--text);
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
         }
 
         button {
@@ -193,6 +248,31 @@ $qrLoginUrl = sprintf('%s://%s%s/qr_login.php?token=%s',
     </div>
 
     <div class="grid" style="margin-top: 16px;">
+        <div class="card">
+            <h3>Creator profile</h3>
+            <form method="post">
+                <input type="hidden" name="action" value="update_profile">
+                <div class="form-grid">
+                    <div>
+                        <label>Display name</label>
+                        <input type="text" name="display_name" value="<?php echo htmlspecialchars($profile['display_name']); ?>" required>
+                    </div>
+                    <div>
+                        <label>Location</label>
+                        <input type="text" name="location" value="<?php echo htmlspecialchars($profile['location']); ?>">
+                    </div>
+                </div>
+                <label>Bio</label>
+                <textarea name="bio"><?php echo htmlspecialchars($profile['bio']); ?></textarea>
+                <label>Theme</label>
+                <select name="theme">
+                    <?php foreach (['midnight', 'neon', 'aurora', 'classic'] as $theme): ?>
+                        <option value="<?php echo $theme; ?>" <?php echo $profile['theme'] === $theme ? 'selected' : ''; ?>><?php echo ucfirst($theme); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit">Save profile</button>
+            </form>
+        </div>
         <div class="card">
             <h3>Login link</h3>
             <p class="muted">Use this secure link to sign in on another device.</p>

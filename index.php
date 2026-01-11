@@ -6,18 +6,30 @@ $db = get_db();
 $user = null;
 
 if (isset($_SESSION['user_id'])) {
-    $stmt = $db->prepare('SELECT id, username, qr_token FROM users WHERE id = :id');
+    $stmt = $db->prepare('SELECT users.id, users.username, users.qr_token, profiles.display_name FROM users LEFT JOIN profiles ON users.id = profiles.user_id WHERE users.id = :id');
     $stmt->bindValue(':id', $_SESSION['user_id'], SQLITE3_INTEGER);
     $result = $stmt->execute();
     $user = $result->fetchArray(SQLITE3_ASSOC) ?: null;
 }
 
 $videos = [];
-$videoStmt = $db->prepare('SELECT videos.id, videos.title, videos.description, videos.views, videos.created_at, users.username FROM videos JOIN users ON videos.user_id = users.id ORDER BY videos.created_at DESC LIMIT 8');
+$videoStmt = $db->prepare('SELECT videos.id, videos.title, videos.description, videos.category, videos.views, videos.created_at, users.username FROM videos JOIN users ON videos.user_id = users.id ORDER BY videos.created_at DESC LIMIT 8');
 $videoResult = $videoStmt->execute();
 while ($row = $videoResult->fetchArray(SQLITE3_ASSOC)) {
     $videos[] = $row;
 }
+
+$userStats = null;
+if ($user) {
+    $statsStmt = $db->prepare('SELECT COUNT(*) as video_count, COALESCE(SUM(views), 0) as total_views FROM videos WHERE user_id = :user_id');
+    $statsStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+    $statsResult = $statsStmt->execute();
+    $userStats = $statsResult->fetchArray(SQLITE3_ASSOC) ?: ['video_count' => 0, 'total_views' => 0];
+}
+
+$platformStmt = $db->prepare('SELECT (SELECT COUNT(*) FROM users) as creators, (SELECT COUNT(*) FROM videos) as uploads');
+$platformResult = $platformStmt->execute();
+$platformStats = $platformResult->fetchArray(SQLITE3_ASSOC) ?: ['creators' => 0, 'uploads' => 0];
 
 $qrLoginUrl = null;
 if ($user) {
@@ -124,6 +136,69 @@ if ($user) {
             color: var(--text);
             text-decoration: none;
             font-size: 14px;
+        }
+
+        .pill.soft {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, rgba(255, 26, 26, 0.18), rgba(255, 255, 255, 0.04));
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: grid;
+            gap: 12px;
+        }
+
+        .hero-card h1 {
+            font-size: 28px;
+        }
+
+        .hero-card p {
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin: 16px 0 24px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--outline);
+            display: grid;
+            gap: 6px;
+        }
+
+        .stat-card strong {
+            font-size: 20px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #1a1a1a;
+            border: 1px solid var(--outline);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .section-stack {
+            display: grid;
+            gap: 20px;
         }
 
         main {
@@ -331,7 +406,7 @@ if ($user) {
     </div>
     <div class="header-actions">
         <?php if ($user): ?>
-            <span class="pill">Hi, <?php echo htmlspecialchars($user['username']); ?></span>
+            <span class="pill">Hi, <?php echo htmlspecialchars(($user['display_name'] ?? '') !== '' ? $user['display_name'] : $user['username']); ?></span>
             <a class="pill" href="logout.php">Logout</a>
         <?php else: ?>
             <a class="pill" href="login.php">Log in</a>
@@ -360,16 +435,62 @@ if ($user) {
                 <li><a class="pill" href="settings.php">Account Settings</a></li>
             </ul>
         </div>
+        <div class="nav-card">
+            <h3>Trending tags</h3>
+            <div class="tag-list">
+                <span class="chip">#ATFOriginals</span>
+                <span class="chip">#CreatorSprint</span>
+                <span class="chip">#LiveCoding</span>
+                <span class="chip">#StudioTips</span>
+                <span class="chip">#DailyUpload</span>
+            </div>
+        </div>
         <?php if ($user): ?>
             <div class="nav-card qr-card">
                 <h3>Login on your phone</h3>
                 <p class="muted">Use your secure login link on any device.</p>
                 <p class="muted">Link: <?php echo htmlspecialchars($qrLoginUrl); ?></p>
             </div>
+            <div class="nav-card">
+                <h3>Creator pulse</h3>
+                <p class="muted">Your creator stats this month.</p>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <span class="muted">Uploads</span>
+                        <strong><?php echo number_format((int) $userStats['video_count']); ?></strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="muted">Views</span>
+                        <strong><?php echo number_format((int) $userStats['total_views']); ?></strong>
+                    </div>
+                </div>
+            </div>
         <?php endif; ?>
     </aside>
 
-    <section>
+    <section class="section-stack">
+        <div class="hero-card">
+            <h1>Welcome to ATF Media</h1>
+            <p>Build your channel, ship videos fast, and keep your audience engaged with next-level creator tools.</p>
+            <div>
+                <a class="pill" href="upload.php">Start uploading</a>
+                <a class="pill soft" href="library.php">Manage library</a>
+            </div>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="muted">Active creators</span>
+                <strong><?php echo number_format((int) $platformStats['creators']); ?></strong>
+            </div>
+            <div class="stat-card">
+                <span class="muted">New uploads</span>
+                <strong><?php echo number_format((int) $platformStats['uploads']); ?></strong>
+            </div>
+            <div class="stat-card">
+                <span class="muted">Categories</span>
+                <strong>6</strong>
+            </div>
+        </div>
         <div class="content-header">
             <h2>ATF Home</h2>
             <span class="muted">Personalized for you</span>
@@ -389,7 +510,7 @@ if ($user) {
                             <h4><?php echo htmlspecialchars($video['title']); ?></h4>
                             <div class="video-meta">by <?php echo htmlspecialchars($video['username']); ?></div>
                             <div class="video-desc"><?php echo htmlspecialchars($video['description']); ?></div>
-                            <div class="video-meta"><?php echo number_format((int) $video['views']); ?> views · <?php echo htmlspecialchars(date('M j, Y', strtotime($video['created_at']))); ?></div>
+                            <div class="video-meta"><?php echo htmlspecialchars($video['category']); ?> · <?php echo number_format((int) $video['views']); ?> views · <?php echo htmlspecialchars(date('M j, Y', strtotime($video['created_at']))); ?></div>
                         </div>
                     </article>
                 <?php endforeach; ?>

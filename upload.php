@@ -17,6 +17,11 @@ if (!$user) {
     exit;
 }
 
+$statsStmt = $db->prepare('SELECT COUNT(*) as total, COALESCE(SUM(views), 0) as views FROM videos WHERE user_id = :user_id');
+$statsStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+$statsResult = $statsStmt->execute();
+$stats = $statsResult->fetchArray(SQLITE3_ASSOC) ?: ['total' => 0, 'views' => 0];
+
 $errors = [];
 $success = false;
 $title = '';
@@ -47,6 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindValue(':description', $description, SQLITE3_TEXT);
         $stmt->bindValue(':category', $category, SQLITE3_TEXT);
         $stmt->execute();
+
+        $notifStmt = $db->prepare('INSERT INTO notifications (user_id, title, body) VALUES (:user_id, :title, :body)');
+        $notifStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+        $notifStmt->bindValue(':title', 'Upload ready for review', SQLITE3_TEXT);
+        $notifStmt->bindValue(':body', 'Your video "' . $title . '" is now in your library.', SQLITE3_TEXT);
+        $notifStmt->execute();
+
         $success = true;
         $title = '';
         $description = '';
@@ -113,6 +125,12 @@ $categories = ['Tech', 'Music', 'Education', 'Gaming', 'Lifestyle', 'Sports'];
             padding: 24px;
         }
 
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
         form {
             display: grid;
             gap: 16px;
@@ -162,6 +180,28 @@ $categories = ['Tech', 'Music', 'Education', 'Gaming', 'Lifestyle', 'Sports'];
             gap: 16px;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         }
+
+        .checklist {
+            display: grid;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255, 26, 26, 0.16);
+            color: #ffb4b4;
+            font-size: 12px;
+        }
+
+        @media (max-width: 960px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -175,39 +215,54 @@ $categories = ['Tech', 'Music', 'Education', 'Gaming', 'Lifestyle', 'Sports'];
     </div>
 </header>
 <main>
-    <div class="card">
-        <h2>Upload a new video</h2>
-        <p class="pill">Signed in as <?php echo htmlspecialchars($user['username']); ?></p>
+    <div class="layout">
+        <div class="card">
+            <h2>Upload a new video</h2>
+            <p class="pill">Signed in as <?php echo htmlspecialchars($user['username']); ?></p>
 
-        <?php if ($success): ?>
-            <p class="success">Your video draft has been added to ATF!</p>
-        <?php endif; ?>
+            <?php if ($success): ?>
+                <p class="success">Your video draft has been added to ATF!</p>
+            <?php endif; ?>
 
-        <?php foreach ($errors as $error): ?>
-            <p class="error"><?php echo htmlspecialchars($error); ?></p>
-        <?php endforeach; ?>
+            <?php foreach ($errors as $error): ?>
+                <p class="error"><?php echo htmlspecialchars($error); ?></p>
+            <?php endforeach; ?>
 
-        <form method="post">
-            <div class="grid">
-                <div>
-                    <label>Video title</label>
-                    <input type="text" name="title" value="<?php echo htmlspecialchars($title); ?>" required>
+            <form method="post">
+                <div class="grid">
+                    <div>
+                        <label>Video title</label>
+                        <input type="text" name="title" value="<?php echo htmlspecialchars($title); ?>" required>
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <select name="category">
+                            <?php foreach ($categories as $option): ?>
+                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $category === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div>
-                    <label>Category</label>
-                    <select name="category">
-                        <?php foreach ($categories as $option): ?>
-                            <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $category === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label>Description</label>
+                    <textarea name="description" required><?php echo htmlspecialchars($description); ?></textarea>
                 </div>
+                <button type="submit">Publish to ATF</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Creator snapshot</h3>
+            <p class="muted">Your channel momentum this month.</p>
+            <p><span class="badge"><?php echo number_format((int) $stats['total']); ?> uploads</span></p>
+            <p><span class="badge"><?php echo number_format((int) $stats['views']); ?> total views</span></p>
+            <h4>Upload checklist</h4>
+            <div class="checklist">
+                <span>✔ Write a clear title</span>
+                <span>✔ Choose the best category</span>
+                <span>✔ Add a helpful description</span>
+                <span>✔ Share with your community</span>
             </div>
-            <div>
-                <label>Description</label>
-                <textarea name="description" required><?php echo htmlspecialchars($description); ?></textarea>
-            </div>
-            <button type="submit">Publish to ATF</button>
-        </form>
+        </div>
     </div>
 </main>
 </body>

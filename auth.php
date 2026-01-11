@@ -34,6 +34,12 @@ if ($action === 'signup') {
         exit;
     }
 
+    $userId = $db->lastInsertRowID();
+    $profileStmt = $db->prepare('INSERT OR IGNORE INTO profiles (user_id, display_name) VALUES (:user_id, :display_name)');
+    $profileStmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
+    $profileStmt->bindValue(':display_name', $username, SQLITE3_TEXT);
+    $profileStmt->execute();
+
     header('Location: login.php?success=1');
     exit;
 }

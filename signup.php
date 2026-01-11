@@ -48,14 +48,36 @@ if ($user) {
             padding: 24px;
         }
 
+        .layout {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 24px;
+            width: min(960px, 100%);
+        }
+
         .card {
-            width: min(440px, 100%);
             background: var(--card);
             border-radius: 18px;
             border: 1px solid var(--outline);
             padding: 28px;
             display: grid;
             gap: 16px;
+        }
+
+        .side-panel {
+            background: linear-gradient(135deg, rgba(255, 26, 26, 0.18), rgba(255, 255, 255, 0.06));
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 28px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .side-panel ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
         label {
@@ -96,29 +118,47 @@ if ($user) {
             color: #fca5a5;
             font-size: 13px;
         }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div>
-            <strong>Create your ATF account</strong>
-            <p class="pill">Join the creator community</p>
+    <div class="layout">
+        <div class="card">
+            <div>
+                <strong>Create your ATF account</strong>
+                <p class="pill">Join the creator community</p>
+            </div>
+            <?php if (isset($_GET['error'])): ?>
+                <div class="error"><?php echo htmlspecialchars($_GET['error']); ?></div>
+            <?php endif; ?>
+            <form method="post" action="auth.php">
+                <input type="hidden" name="action" value="signup">
+                <label>Username</label>
+                <input type="text" name="username" required>
+                <label>Password</label>
+                <input type="password" name="password" required>
+                <button type="submit">Sign up</button>
+            </form>
+            <div>
+                <span class="pill">Already have an account?</span>
+                <a class="pill" href="login.php">Log in</a>
+                <a class="pill" href="index.php">Back to home</a>
+            </div>
         </div>
-        <?php if (isset($_GET['error'])): ?>
-            <div class="error"><?php echo htmlspecialchars($_GET['error']); ?></div>
-        <?php endif; ?>
-        <form method="post" action="auth.php">
-            <input type="hidden" name="action" value="signup">
-            <label>Username</label>
-            <input type="text" name="username" required>
-            <label>Password</label>
-            <input type="password" name="password" required>
-            <button type="submit">Sign up</button>
-        </form>
-        <div>
-            <span class="pill">Already have an account?</span>
-            <a class="pill" href="login.php">Log in</a>
-            <a class="pill" href="index.php">Back to home</a>
+        <div class="side-panel">
+            <h3>Start strong with ATF</h3>
+            <ul>
+                <li>Personalized creator workspace</li>
+                <li>Organized library with filters</li>
+                <li>Secure login link for any device</li>
+                <li>Actionable dashboard insights</li>
+            </ul>
+            <p class="muted">Sign up to unlock uploads, analytics, and pro creator tools.</p>
         </div>
     </div>
 </body>

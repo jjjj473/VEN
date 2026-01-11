@@ -40,6 +40,14 @@ for ($i = 6; $i >= 0; $i--) {
     $growthRow = $growthResult->fetchArray(SQLITE3_ASSOC);
     $growth[] = ['date' => $date, 'count' => (int) $growthRow['count']];
 }
+
+$notifStmt = $db->prepare('SELECT title, body, created_at FROM notifications WHERE user_id = :user_id ORDER BY created_at DESC LIMIT 3');
+$notifStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+$notifResult = $notifStmt->execute();
+$notifications = [];
+while ($row = $notifResult->fetchArray(SQLITE3_ASSOC)) {
+    $notifications[] = $row;
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -98,6 +106,14 @@ for ($i = 6; $i >= 0; $i--) {
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         }
 
+        .hero {
+            background: linear-gradient(135deg, rgba(255, 26, 26, 0.18), rgba(255, 255, 255, 0.05));
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 20px;
+        }
+
         .card {
             background: var(--card);
             border-radius: 16px;
@@ -127,6 +143,18 @@ for ($i = 6; $i >= 0; $i--) {
             background: var(--accent);
         }
 
+        .notif {
+            display: grid;
+            gap: 8px;
+        }
+
+        .notif-item {
+            padding: 12px;
+            border-radius: 12px;
+            background: #181818;
+            border: 1px solid var(--outline);
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -151,6 +179,10 @@ for ($i = 6; $i >= 0; $i--) {
     </div>
 </header>
 <main>
+    <div class="hero">
+        <h2>Creator dashboard</h2>
+        <p class="muted">Track your uploads, momentum, and audience impact.</p>
+    </div>
     <div class="grid">
         <div class="card">
             <h3>Total uploads</h3>
@@ -173,6 +205,23 @@ for ($i = 6; $i >= 0; $i--) {
                     </div>
                 <?php endforeach; ?>
             </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 24px;">
+        <h3>Creator notifications</h3>
+        <div class="notif">
+            <?php if (count($notifications) === 0): ?>
+                <div class="notif-item muted">No updates yet. Upload to trigger new insights.</div>
+            <?php else: ?>
+                <?php foreach ($notifications as $note): ?>
+                    <div class="notif-item">
+                        <strong><?php echo htmlspecialchars($note['title']); ?></strong>
+                        <p class="muted"><?php echo htmlspecialchars($note['body']); ?></p>
+                        <span class="muted"><?php echo htmlspecialchars(date('M j, Y', strtotime($note['created_at']))); ?></span>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 

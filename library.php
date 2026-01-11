@@ -46,6 +46,11 @@ $videos = [];
 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     $videos[] = $row;
 }
+
+$summaryStmt = $db->prepare('SELECT COUNT(*) as total_videos, COALESCE(SUM(views), 0) as total_views FROM videos WHERE user_id = :user_id');
+$summaryStmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+$summaryResult = $summaryStmt->execute();
+$summary = $summaryResult->fetchArray(SQLITE3_ASSOC) ?: ['total_videos' => 0, 'total_views' => 0];
 ?>
 <!doctype html>
 <html lang="en">
@@ -105,6 +110,26 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             margin-bottom: 20px;
         }
 
+        .summary {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--outline);
+            display: grid;
+            gap: 6px;
+        }
+
+        .summary-card strong {
+            font-size: 20px;
+        }
+
         input, select {
             padding: 10px 12px;
             border-radius: 10px;
@@ -154,6 +179,20 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
 </header>
 <main>
     <p class="muted">Showing videos for <?php echo htmlspecialchars($user['username']); ?></p>
+    <div class="summary">
+        <div class="summary-card">
+            <span class="muted">Total videos</span>
+            <strong><?php echo number_format((int) $summary['total_videos']); ?></strong>
+        </div>
+        <div class="summary-card">
+            <span class="muted">Total views</span>
+            <strong><?php echo number_format((int) $summary['total_views']); ?></strong>
+        </div>
+        <div class="summary-card">
+            <span class="muted">Current filter</span>
+            <strong><?php echo $category === '' ? 'All' : htmlspecialchars($category); ?></strong>
+        </div>
+    </div>
     <form class="filters" method="get">
         <input type="text" name="search" placeholder="Search by title or description" value="<?php echo htmlspecialchars($search); ?>">
         <select name="category">

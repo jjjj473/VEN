@@ -8,6 +8,15 @@ if ($token === '') {
     exit;
 }
 
+function safe_redirect_target(string $target): string
+{
+    if ($target === '' || str_contains($target, '://') || str_starts_with($target, '//')) {
+        return 'index.php';
+    }
+
+    return $target;
+}
+
 $db = get_db();
 $stmt = $db->prepare('SELECT id FROM users WHERE qr_token = :token');
 $stmt->bindValue(':token', $token, SQLITE3_TEXT);
@@ -20,5 +29,6 @@ if (!$user) {
 }
 
 $_SESSION['user_id'] = (int) $user['id'];
-header('Location: index.php');
+$next = safe_redirect_target($_GET['next'] ?? 'index.php');
+header('Location: ' . $next);
 exit;
