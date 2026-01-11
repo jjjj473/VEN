@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: index.php');
+    header('Location: login.php');
     exit;
 }
 
@@ -12,7 +12,8 @@ $username = trim($_POST['username'] ?? '');
 $password = $_POST['password'] ?? '';
 
 if ($username === '' || $password === '') {
-    header('Location: index.php?error=Please+fill+in+all+fields');
+    $target = $action === 'signup' ? 'signup.php' : 'login.php';
+    header('Location: ' . $target . '?error=Please+fill+in+all+fields');
     exit;
 }
 
@@ -29,11 +30,11 @@ if ($action === 'signup') {
 
     $result = @$stmt->execute();
     if ($result === false) {
-        header('Location: index.php?error=Username+already+taken');
+        header('Location: signup.php?error=Username+already+taken');
         exit;
     }
 
-    header('Location: index.php?success=1');
+    header('Location: login.php?success=1');
     exit;
 }
 
@@ -44,7 +45,7 @@ if ($action === 'login') {
     $user = $result->fetchArray(SQLITE3_ASSOC);
 
     if (!$user || !password_verify($password, $user['password_hash'])) {
-        header('Location: index.php?error=Invalid+credentials');
+        header('Location: login.php?error=Invalid+credentials');
         exit;
     }
 
@@ -53,5 +54,5 @@ if ($action === 'login') {
     exit;
 }
 
-header('Location: index.php?error=Unknown+action');
+header('Location: login.php?error=Unknown+action');
 exit;

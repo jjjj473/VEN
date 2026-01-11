@@ -334,7 +334,8 @@ if ($user) {
             <span class="pill">Hi, <?php echo htmlspecialchars($user['username']); ?></span>
             <a class="pill" href="logout.php">Logout</a>
         <?php else: ?>
-            <span class="pill">Guest</span>
+            <a class="pill" href="login.php">Log in</a>
+            <a class="pill" href="signup.php">Sign up</a>
         <?php endif; ?>
     </div>
 </header>
@@ -362,8 +363,7 @@ if ($user) {
         <?php if ($user): ?>
             <div class="nav-card qr-card">
                 <h3>Login on your phone</h3>
-                <p class="muted">Scan this QR code to sign in instantly.</p>
-                <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=<?php echo urlencode($qrLoginUrl); ?>" alt="QR code for login">
+                <p class="muted">Use your secure login link on any device.</p>
                 <p class="muted">Link: <?php echo htmlspecialchars($qrLoginUrl); ?></p>
             </div>
         <?php endif; ?>
@@ -411,29 +411,15 @@ if ($user) {
 
             <?php if (!$user): ?>
                 <div>
-                    <h3>Log in</h3>
-                    <form method="post" action="auth.php">
-                        <input type="hidden" name="action" value="login">
-                        <label>Username</label>
-                        <input type="text" name="username" required>
-                        <label>Password</label>
-                        <input type="password" name="password" required>
-                        <button type="submit">Log in</button>
-                    </form>
-                </div>
-                <div>
-                    <h3>Create an account</h3>
-                    <form method="post" action="auth.php">
-                        <input type="hidden" name="action" value="signup">
-                        <label>Username</label>
-                        <input type="text" name="username" required>
-                        <label>Password</label>
-                        <input type="password" name="password" required>
-                        <button type="submit">Sign up</button>
-                    </form>
+                    <h3>Log in or create an account</h3>
+                    <p class="muted">Use the dedicated pages for a focused sign-in experience.</p>
+                    <p>
+                        <a class="pill" href="login.php">Log in</a>
+                        <a class="pill" href="signup.php">Sign up</a>
+                    </p>
                 </div>
             <?php else: ?>
-                <p class="muted">You are signed in. Use the QR code to log in on another phone or tablet.</p>
+                <p class="muted">You are signed in. Use the secure link in Settings to log in on another device.</p>
             <?php endif; ?>
         </div>
     </section>

@@ -194,12 +194,12 @@ $qrLoginUrl = sprintf('%s://%s%s/qr_login.php?token=%s',
 
     <div class="grid" style="margin-top: 16px;">
         <div class="card">
-            <h3>QR Login</h3>
-            <p class="muted">Scan to sign in on another device.</p>
-            <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=<?php echo urlencode($qrLoginUrl); ?>" alt="QR code" style="width: 180px; height: 180px; border-radius: 12px; background: #fff; border: 1px solid var(--outline);">
+            <h3>Login link</h3>
+            <p class="muted">Use this secure link to sign in on another device.</p>
+            <p class="muted"><?php echo htmlspecialchars($qrLoginUrl); ?></p>
             <form method="post">
                 <input type="hidden" name="action" value="regenerate_qr">
-                <button type="submit">Regenerate QR Token</button>
+                <button type="submit">Regenerate login token</button>
             </form>
         </div>
         <div class="card">
