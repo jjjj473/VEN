@@ -1,60 +1,160 @@
 # VEN
 
-VEN is a prototype code editor now implemented purely in C. It demonstrates a
-very small plugin system that loads tools as shared libraries at runtime.
+VEN is a prototype code editor in C with runtime plugins, plus a standalone
+JavaScript **Markup** library for modern markdown-like parsing and rendering.
 
-## Building
+## Building the C editor
 
-Use `make` to build the `tuxpad` binary and example plugin:
+Use `make` to build `tuxpad` and the native example plugins:
 
 ```sh
 make
 ```
 
-Run the program by providing a file name:
+Run the program with a file:
 
 ```sh
 ./tuxpad path/to/file.txt
 ```
 
-The program counts the number of lines in the given file and then demonstrates
-loading plugins from the `plugins/` directory if they exist. Plugins must
-export a `void run(const char *filename)` function. The provided plugins
-include a word counter as well as Linux tools that print system and disk
-information.
+Current native plugins:
 
-### Plugins
+- `wordcount.so` – counts words in the file
+- `sysinfo.so` – prints CPU and memory information
+- `diskusage.so` – shows disk usage for the file's filesystem
 
-Plugins are C shared libraries stored in the `plugins/` directory. Each library
-should define a `run` function accepting the file name to operate on. The
-`tuxpad` executable loads any available plugins after counting lines. Provided
-plugins include:
+## Markup JavaScript library (all-JS support)
 
-* `wordcount.so` &ndash; counts words in the file
-* `sysinfo.so` &ndash; prints basic CPU and memory information
-* `diskusage.so` &ndash; shows disk usage for the file's filesystem
+`Markup` is fully JavaScript and does not require C bindings.
 
-### Build & Run
+Library file:
 
-`make` also builds the example plugins so running `./tuxpad FILE` will count
-lines and then invoke any plugins found in the `plugins/` directory.
+- `scripts/markup.js`
 
-## GUI
+### Core features
 
-An optional Tkinter interface is included for experimenting with the plugins.
-Build everything then launch the GUI with:
+- Block parsing: headings, paragraphs, blockquotes, list items, task items,
+  table-like rows, fenced code blocks.
+- Inline parsing: bold (`**`), italic (`*`), inline code (`` ` ``), links.
+- Rich output metadata per component: `line`, `tokens`, `smoothness`, `complexity`.
+- Validation + fix guidance: structured error logs with code, severity, and
+  suggested fixes.
+- Strict mode (`{ strict: true }` or `--strict`) that throws when fatal parse
+  issues are detected.
 
-```sh
-make gui
+### API
+
+- `parseMarkup(input, options?)` -> `{ components, errors, meta }`
+- `renderMarkupHtml(document)` -> escaped HTML-like output
+- `diagnostics(document)` -> component diagnostics + error summary
+- `formatErrors(errors)` -> human-readable fix log
+- `suggestFixes(input, options?)` -> one-call lint/fix report
+
+### Node.js usage
+
+```js
+const Markup = require('./scripts/markup.js');
+
+const source = '# Title
+#### Jump
+Broken **bold
+[bad](https://example.com';
+const doc = Markup.parseMarkup(source);
+
+console.log(Markup.diagnostics(doc));
+console.log(Markup.formatErrors(doc.errors));
+console.log(Markup.renderMarkupHtml(doc));
 ```
 
-The GUI allows you to open a file and run the available plugins from the
-`Plugins` menu. If no graphical display is available the GUI will exit with a
-message.
+CLI usage:
+
+```sh
+node scripts/markup.js README.md
+node scripts/markup.js README.md --strict
+node scripts/markup.js README.md --ai-preview --provider=openai
+```
+
+
+### AI support (ChatGPT and other models)
+
+The library now includes AI-assist utilities so users can fix markup more like a
+human reviewer with explicit AI rules.
+
+AI APIs:
+
+- `defaultAiRules()` -> baseline human-style safety/quality rules
+- `buildAiPrompt(input, document, options?)` -> deterministic prompt with rules + error log
+- `buildProviderRequest(provider, model, prompt, options?)` -> provider request payload
+- `aiAssist(input, options?)` -> AI workflow preview or execution (with custom transport)
+
+Supported providers out of the box:
+
+- `openai` (ChatGPT-compatible chat/completions payload)
+- `anthropic` (messages payload)
+
+Preview an AI request without calling any network API:
+
+```js
+const Markup = require('./scripts/markup.js');
+
+const preview = await Markup.aiAssist('#### Jump\nBroken **bold', {
+  provider: 'openai',
+});
+
+console.log(preview.prompt);
+console.log(preview.request);
+```
+
+Execute with your own transport (works with any model/provider gateway):
+
+```js
+const result = await Markup.aiAssist(source, {
+  provider: 'openai',
+  model: 'gpt-4.1-mini',
+  apiKey: process.env.OPENAI_API_KEY,
+  transport: async (request) => {
+    const res = await fetch(request.endpoint, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(request.body),
+    });
+    return res.json();
+  },
+});
+
+console.log(result.parsed.fixed_markup);
+```
+
+### Browser usage from GitHub (no download)
+
+You can link directly from your GitHub repo through jsDelivr:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/<OWNER>/<REPO>@<REF>/scripts/markup.js"></script>
+<script>
+  const doc = Markup.parseMarkup('# Loaded from GitHub CDN');
+  console.log(Markup.formatErrors(doc.errors));
+  document.body.innerHTML = Markup.renderMarkupHtml(doc);
+</script>
+```
+
+- `<REF>` can be `main`, a tag, or a commit SHA.
+- This lets users call and link the library from JavaScript without downloading
+  the file.
+
+A browser demo is included at:
+
+- `web/markup-browser-demo.html`
+
+## Extra targets
+
+Run the JS engine quickly:
+
+```sh
+make markup-js
+```
 
 ## Cleaning
-
-To clean build artifacts run:
 
 ```sh
 make clean

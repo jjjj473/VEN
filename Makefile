@@ -23,6 +23,10 @@ plugins/sysinfo.so: plugins/sysinfo.c
 plugins/diskusage.so: plugins/diskusage.c
 	$(CC) $(CFLAGS) -shared $< -o $@
 
+
+markup-js:
+	node scripts/markup.js README.md
+
 clean:
 	rm -f src/*.o tuxpad plugins/*.so
 
