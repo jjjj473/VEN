@@ -45,11 +45,21 @@ const x = 1;
     <h2>Rendered Output</h2>
     <div id="rendered"></div>
 
+    <h2>AI Assist (ChatGPT / Anthropic style)</h2>
+    <label for="provider">Provider</label>
+    <select id="provider">
+      <option value="openai">OpenAI (ChatGPT)</option>
+      <option value="anthropic">Anthropic</option>
+    </select>
+    <pre id="aiPreview"></pre>
+
     <script>
       const inputEl = document.getElementById('input');
       const diagEl = document.getElementById('diag');
       const errorsEl = document.getElementById('errors');
       const renderedEl = document.getElementById('rendered');
+      const providerEl = document.getElementById('provider');
+      const aiPreviewEl = document.getElementById('aiPreview');
 
       document.getElementById('run').addEventListener('click', () => {
         try {
@@ -57,6 +67,20 @@ const x = 1;
           diagEl.textContent = Markup.diagnostics(doc);
           errorsEl.textContent = Markup.formatErrors(doc.errors);
           renderedEl.innerHTML = Markup.renderMarkupHtml(doc);
+
+          const aiResult = Markup.aiAssist(inputEl.value, { provider: providerEl.value });
+          Promise.resolve(aiResult).then((value) => {
+            aiPreviewEl.textContent = JSON.stringify(
+              {
+                provider: providerEl.value,
+                rules: Markup.defaultAiRules(),
+                requestPreview: value.request,
+                promptPreview: value.prompt.slice(0, 700) + (value.prompt.length > 700 ? '...\n[truncated]' : ''),
+              },
+              null,
+              2
+            );
+          });
 
           if (doc.errors.some((e) => e.severity === 'error')) {
             errorsEl.classList.add('error');

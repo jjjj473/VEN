@@ -335,12 +335,140 @@
     return formatErrors(document.errors);
   }
 
+
+  function defaultAiRules() {
+    return [
+      'Preserve author intent and document meaning.',
+      'Fix syntax errors before style changes.',
+      'Never invent links, references, or code semantics.',
+      'Return concrete, minimal edits with explanations.',
+      'Flag uncertain changes instead of guessing.',
+    ];
+  }
+
+  function buildAiPrompt(input, document, options = {}) {
+    const provider = options.provider || 'openai';
+    const model = options.model || 'gpt-4.1-mini';
+    const rules = options.rules && options.rules.length ? options.rules : defaultAiRules();
+    const errorLog = formatErrors(document.errors);
+
+    return [
+      `You are a markup repair assistant for provider=${provider}, model=${model}.`,
+      'Follow these AI rules strictly:',
+      ...rules.map((rule, idx) => `${idx + 1}. ${rule}`),
+      '',
+      'Detected issues:',
+      errorLog,
+      '',
+      'Original document:',
+      input,
+      '',
+      'Task:',
+      '- Fix markup issues.',
+      '- Keep content as close as possible to the original.',
+      '- Return JSON with keys: summary, fixed_markup, rationale.',
+    ].join('\n');
+  }
+
+  function buildProviderRequest(provider, model, prompt, options = {}) {
+    const maxTokens = options.maxTokens || 1200;
+    if (provider === 'anthropic') {
+      return {
+        provider,
+        endpoint: options.endpoint || 'https://api.anthropic.com/v1/messages',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': options.apiKey || '<ANTHROPIC_API_KEY>',
+          'anthropic-version': '2023-06-01',
+        },
+        body: {
+          model: model || 'claude-3-7-sonnet-latest',
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        },
+      };
+    }
+
+    return {
+      provider: 'openai',
+      endpoint: options.endpoint || 'https://api.openai.com/v1/chat/completions',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${options.apiKey || '<OPENAI_API_KEY>'}`,
+      },
+      body: {
+        model: model || 'gpt-4.1-mini',
+        temperature: options.temperature ?? 0.1,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'You fix markup documents while preserving intent.' },
+          { role: 'user', content: prompt },
+        ],
+      },
+    };
+  }
+
+  function extractAiText(provider, responsePayload) {
+    try {
+      if (provider === 'anthropic') {
+        return responsePayload.content?.[0]?.text || '';
+      }
+      return responsePayload.choices?.[0]?.message?.content || '';
+    } catch (err) {
+      return '';
+    }
+  }
+
+  async function aiAssist(input, options = {}) {
+    const provider = options.provider || 'openai';
+    const model = options.model;
+    const document = parseMarkup(input, { strict: false });
+    const prompt = buildAiPrompt(input, document, options);
+    const request = buildProviderRequest(provider, model, prompt, options);
+
+    if (typeof options.transport !== 'function') {
+      return {
+        mode: 'preview',
+        prompt,
+        request,
+        errors: document.errors,
+        guidance: 'Pass a transport(request) function to execute this against an AI provider.',
+      };
+    }
+
+    const responsePayload = await options.transport(request);
+    const rawText = extractAiText(provider, responsePayload);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (err) {
+      parsed = {
+        summary: 'AI response was not valid JSON; returning raw output.',
+        fixed_markup: input,
+        rationale: rawText,
+      };
+    }
+
+    return {
+      mode: 'executed',
+      prompt,
+      request,
+      response: responsePayload,
+      parsed,
+    };
+  }
+
   return {
     parseMarkup,
     renderMarkupHtml,
     diagnostics,
     formatErrors,
     suggestFixes,
+    buildAiPrompt,
+    buildProviderRequest,
+    aiAssist,
+    defaultAiRules,
     severity: SEVERITY,
   };
 });
@@ -350,6 +478,9 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
   const Markup = module.exports;
   const file = process.argv[2];
   const strict = process.argv.includes('--strict');
+  const aiPreview = process.argv.includes('--ai-preview');
+  const providerArg = process.argv.find((arg) => arg.startsWith('--provider='));
+  const provider = providerArg ? providerArg.split('=')[1] : 'openai';
 
   if (!file) {
     console.error('Usage: node scripts/markup.js <file> [--strict]');
@@ -365,6 +496,15 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
     console.log(Markup.formatErrors(document.errors));
     console.log('[markup-js] Render preview:');
     console.log(Markup.renderMarkupHtml(document));
+
+    if (aiPreview) {
+      const preview = Markup.aiAssist(content, { provider });
+      Promise.resolve(preview).then((result) => {
+        console.log('[markup-js] AI Assist Preview:');
+        console.log(result.guidance || '');
+        console.log(JSON.stringify(result.request, null, 2));
+      });
+    }
   } catch (error) {
     console.error(`[markup-js] ${error.message}`);
     if (error.errors) {

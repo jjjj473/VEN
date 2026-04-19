@@ -71,6 +71,58 @@ CLI usage:
 ```sh
 node scripts/markup.js README.md
 node scripts/markup.js README.md --strict
+node scripts/markup.js README.md --ai-preview --provider=openai
+```
+
+
+### AI support (ChatGPT and other models)
+
+The library now includes AI-assist utilities so users can fix markup more like a
+human reviewer with explicit AI rules.
+
+AI APIs:
+
+- `defaultAiRules()` -> baseline human-style safety/quality rules
+- `buildAiPrompt(input, document, options?)` -> deterministic prompt with rules + error log
+- `buildProviderRequest(provider, model, prompt, options?)` -> provider request payload
+- `aiAssist(input, options?)` -> AI workflow preview or execution (with custom transport)
+
+Supported providers out of the box:
+
+- `openai` (ChatGPT-compatible chat/completions payload)
+- `anthropic` (messages payload)
+
+Preview an AI request without calling any network API:
+
+```js
+const Markup = require('./scripts/markup.js');
+
+const preview = await Markup.aiAssist('#### Jump\nBroken **bold', {
+  provider: 'openai',
+});
+
+console.log(preview.prompt);
+console.log(preview.request);
+```
+
+Execute with your own transport (works with any model/provider gateway):
+
+```js
+const result = await Markup.aiAssist(source, {
+  provider: 'openai',
+  model: 'gpt-4.1-mini',
+  apiKey: process.env.OPENAI_API_KEY,
+  transport: async (request) => {
+    const res = await fetch(request.endpoint, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(request.body),
+    });
+    return res.json();
+  },
+});
+
+console.log(result.parsed.fixed_markup);
 ```
 
 ### Browser usage from GitHub (no download)
