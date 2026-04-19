@@ -25,55 +25,78 @@ Current native plugins:
 
 ## Markup JavaScript library (all-JS support)
 
-`Markup` is now fully JavaScript and does not require C bindings.
+`Markup` is fully JavaScript and does not require C bindings.
 
 Library file:
 
 - `scripts/markup.js`
 
-APIs:
+### Core features
 
-- `parseMarkup(input)` -> returns structured components
-- `renderMarkupHtml(document)` -> returns escaped HTML-like output
-- `diagnostics(document)` -> returns smoothness/complexity summaries
+- Block parsing: headings, paragraphs, blockquotes, list items, task items,
+  table-like rows, fenced code blocks.
+- Inline parsing: bold (`**`), italic (`*`), inline code (`` ` ``), links.
+- Rich output metadata per component: `line`, `tokens`, `smoothness`, `complexity`.
+- Validation + fix guidance: structured error logs with code, severity, and
+  suggested fixes.
+- Strict mode (`{ strict: true }` or `--strict`) that throws when fatal parse
+  issues are detected.
+
+### API
+
+- `parseMarkup(input, options?)` -> `{ components, errors, meta }`
+- `renderMarkupHtml(document)` -> escaped HTML-like output
+- `diagnostics(document)` -> component diagnostics + error summary
+- `formatErrors(errors)` -> human-readable fix log
+- `suggestFixes(input, options?)` -> one-call lint/fix report
 
 ### Node.js usage
 
 ```js
 const Markup = require('./scripts/markup.js');
-const doc = Markup.parseMarkup('# Hello\n- Item');
+
+const source = '# Title
+#### Jump
+Broken **bold
+[bad](https://example.com';
+const doc = Markup.parseMarkup(source);
+
 console.log(Markup.diagnostics(doc));
+console.log(Markup.formatErrors(doc.errors));
 console.log(Markup.renderMarkupHtml(doc));
 ```
 
-Or run it as a CLI:
+CLI usage:
 
 ```sh
 node scripts/markup.js README.md
+node scripts/markup.js README.md --strict
 ```
 
 ### Browser usage from GitHub (no download)
 
-You can link the library directly from your GitHub repo via jsDelivr:
+You can link directly from your GitHub repo through jsDelivr:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/<OWNER>/<REPO>@<REF>/scripts/markup.js"></script>
 <script>
   const doc = Markup.parseMarkup('# Loaded from GitHub CDN');
+  console.log(Markup.formatErrors(doc.errors));
   document.body.innerHTML = Markup.renderMarkupHtml(doc);
 </script>
 ```
 
-- `<REF>` can be a branch (`main`), tag, or commit SHA.
-- This allows users to call and link the library from JavaScript without downloading files locally.
+- `<REF>` can be `main`, a tag, or a commit SHA.
+- This lets users call and link the library from JavaScript without downloading
+  the file.
 
-A ready browser example is included at:
+A browser demo is included at:
 
 - `web/markup-browser-demo.html`
 
 ## Extra targets
 
-Run the JS engine quickly from Make:
+Run the JS engine quickly:
 
 ```sh
 make markup-js
