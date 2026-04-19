@@ -23,8 +23,8 @@ plugins/sysinfo.so: plugins/sysinfo.c
 plugins/diskusage.so: plugins/diskusage.c
 	$(CC) $(CFLAGS) -shared $< -o $@
 
-plugins/markup.so: plugins/markup.c src/markup.c src/markup.h
-	$(CC) $(CFLAGS) -shared plugins/markup.c src/markup.c -o $@
+plugins/markup.so: plugins/markup.c
+	$(CC) $(CFLAGS) -shared $< -o $@
 
 clean:
 	rm -f src/*.o tuxpad plugins/*.so

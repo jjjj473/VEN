@@ -31,10 +31,10 @@ should define a `run` function accepting the file name to operate on. The
 `tuxpad` executable loads any available plugins after counting lines. Provided
 plugins include:
 
-* `wordcount.so` &ndash; counts words in the file
-* `sysinfo.so` &ndash; prints basic CPU and memory information
-* `diskusage.so` &ndash; shows disk usage for the file's filesystem
-* `markup.so` &ndash; parses markdown-like text into rich `markup` components and renders an HTML preview
+* `wordcount.so` – counts words in the file
+* `sysinfo.so` – prints basic CPU and memory information
+* `diskusage.so` – shows disk usage for the file's filesystem
+* `markup.so` – dispatches to the JavaScript `markup` engine for rich parsing and HTML preview output
 
 ### Build & Run
 
@@ -62,11 +62,21 @@ To clean build artifacts run:
 make clean
 ```
 
+## Markup JavaScript library
 
-## Markup library
+`scripts/markup.js` is the new reusable **markup JS library**. It replaces the
+prior C-only parsing flow and provides:
 
-`src/markup.c` + `src/markup.h` implement a reusable C library named **markup**.
-It parses documents into components (headings, paragraphs, list items, block
-quotes, and code blocks), assigns smoothness/complexity scores, and can render
-components to HTML-like output. The `plugins/markup.so` plugin demonstrates this
-library and is intended to be the richer successor to plain markdown handling.
+- `parseMarkup(input)` -> structured components (heading, paragraph, list item,
+  blockquote, code block)
+- `renderMarkupHtml(document)` -> escaped HTML-like output
+- `diagnostics(document)` -> smoothness/complexity summaries
+
+You can run it directly:
+
+```sh
+node scripts/markup.js README.md
+```
+
+The `plugins/markup.so` plugin now calls this script so markup behavior is
+powered by JavaScript while remaining compatible with the C plugin runtime.
