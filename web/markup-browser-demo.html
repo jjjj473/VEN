@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Markup Browser Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 960px; }
+      textarea { width: 100%; min-height: 180px; }
+      pre { background: #111; color: #d7ffd7; padding: 1rem; overflow: auto; }
+      #rendered { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; }
+    </style>
+    <!--
+      Replace OWNER/REPO and REF with your repository and branch/tag/commit.
+      This allows browser usage directly from GitHub via jsDelivr.
+    -->
+    <script src="https://cdn.jsdelivr.net/gh/OWNER/REPO@REF/scripts/markup.js"></script>
+  </head>
+  <body>
+    <h1>Markup from GitHub CDN</h1>
+    <p>
+      This page loads <code>scripts/markup.js</code> directly from GitHub through jsDelivr,
+      so users can use the library in browsers without downloading it.
+    </p>
+
+    <textarea id="input"># Hello from Markup
+- Browser loaded library
+> From GitHub CDN</textarea>
+    <button id="run">Parse + Render</button>
+
+    <h2>Diagnostics</h2>
+    <pre id="diag"></pre>
+
+    <h2>Rendered Output</h2>
+    <div id="rendered"></div>
+
+    <script>
+      const inputEl = document.getElementById('input');
+      const diagEl = document.getElementById('diag');
+      const renderedEl = document.getElementById('rendered');
+
+      document.getElementById('run').addEventListener('click', () => {
+        const doc = Markup.parseMarkup(inputEl.value);
+        diagEl.textContent = Markup.diagnostics(doc);
+        renderedEl.innerHTML = Markup.renderMarkupHtml(doc);
+      });
+    </script>
+  </body>
+</html>

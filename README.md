@@ -1,82 +1,86 @@
 # VEN
 
-VEN is a prototype code editor now implemented purely in C. It demonstrates a
-very small plugin system that loads tools as shared libraries at runtime.
+VEN is a prototype code editor in C with runtime plugins, plus a standalone
+JavaScript **Markup** library for modern markdown-like parsing and rendering.
 
-## Building
+## Building the C editor
 
-Use `make` to build the `tuxpad` binary and example plugin:
+Use `make` to build `tuxpad` and the native example plugins:
 
 ```sh
 make
 ```
 
-Run the program by providing a file name:
+Run the program with a file:
 
 ```sh
 ./tuxpad path/to/file.txt
 ```
 
-The program counts the number of lines in the given file and then demonstrates
-loading plugins from the `plugins/` directory if they exist. Plugins must
-export a `void run(const char *filename)` function. The provided plugins
-include a word counter as well as Linux tools that print system and disk
-information, plus a new `markup` parser/renderer that extends basic markdown
-into richer components.
+Current native plugins:
 
-### Plugins
+- `wordcount.so` – counts words in the file
+- `sysinfo.so` – prints CPU and memory information
+- `diskusage.so` – shows disk usage for the file's filesystem
 
-Plugins are C shared libraries stored in the `plugins/` directory. Each library
-should define a `run` function accepting the file name to operate on. The
-`tuxpad` executable loads any available plugins after counting lines. Provided
-plugins include:
+## Markup JavaScript library (all-JS support)
 
-* `wordcount.so` – counts words in the file
-* `sysinfo.so` – prints basic CPU and memory information
-* `diskusage.so` – shows disk usage for the file's filesystem
-* `markup.so` – dispatches to the JavaScript `markup` engine for rich parsing and HTML preview output
+`Markup` is now fully JavaScript and does not require C bindings.
 
-### Build & Run
+Library file:
 
-`make` also builds the example plugins so running `./tuxpad FILE` will count
-lines and then invoke any plugins found in the `plugins/` directory.
+- `scripts/markup.js`
 
-## GUI
+APIs:
 
-An optional Tkinter interface is included for experimenting with the plugins.
-Build everything then launch the GUI with:
+- `parseMarkup(input)` -> returns structured components
+- `renderMarkupHtml(document)` -> returns escaped HTML-like output
+- `diagnostics(document)` -> returns smoothness/complexity summaries
 
-```sh
-make gui
+### Node.js usage
+
+```js
+const Markup = require('./scripts/markup.js');
+const doc = Markup.parseMarkup('# Hello\n- Item');
+console.log(Markup.diagnostics(doc));
+console.log(Markup.renderMarkupHtml(doc));
 ```
 
-The GUI allows you to open a file and run the available plugins from the
-`Plugins` menu. If no graphical display is available the GUI will exit with a
-message.
-
-## Cleaning
-
-To clean build artifacts run:
-
-```sh
-make clean
-```
-
-## Markup JavaScript library
-
-`scripts/markup.js` is the new reusable **markup JS library**. It replaces the
-prior C-only parsing flow and provides:
-
-- `parseMarkup(input)` -> structured components (heading, paragraph, list item,
-  blockquote, code block)
-- `renderMarkupHtml(document)` -> escaped HTML-like output
-- `diagnostics(document)` -> smoothness/complexity summaries
-
-You can run it directly:
+Or run it as a CLI:
 
 ```sh
 node scripts/markup.js README.md
 ```
 
-The `plugins/markup.so` plugin now calls this script so markup behavior is
-powered by JavaScript while remaining compatible with the C plugin runtime.
+### Browser usage from GitHub (no download)
+
+You can link the library directly from your GitHub repo via jsDelivr:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/<OWNER>/<REPO>@<REF>/scripts/markup.js"></script>
+<script>
+  const doc = Markup.parseMarkup('# Loaded from GitHub CDN');
+  document.body.innerHTML = Markup.renderMarkupHtml(doc);
+</script>
+```
+
+- `<REF>` can be a branch (`main`), tag, or commit SHA.
+- This allows users to call and link the library from JavaScript without downloading files locally.
+
+A ready browser example is included at:
+
+- `web/markup-browser-demo.html`
+
+## Extra targets
+
+Run the JS engine quickly from Make:
+
+```sh
+make markup-js
+```
+
+## Cleaning
+
+```sh
+make clean
+```

@@ -28,9 +28,6 @@ int main(int argc, char **argv) {
     if (access("plugins/diskusage.so", R_OK) == 0) {
         load_and_run_plugin("plugins/diskusage.so", filename);
     }
-    if (access("plugins/markup.so", R_OK) == 0) {
-        load_and_run_plugin("plugins/markup.so", filename);
-    }
 
     printf("Done.\n");
 
