@@ -1,6 +1,6 @@
 CFLAGS=-Wall -Wextra -fPIC -I./src
 
-all: tuxpad plugins/wordcount.so plugins/sysinfo.so plugins/diskusage.so
+all: tuxpad plugins/wordcount.so plugins/sysinfo.so plugins/diskusage.so plugins/markup.so
 
 src/editor_features.o: src/editor_features.c src/editor_features.h
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -22,6 +22,9 @@ plugins/sysinfo.so: plugins/sysinfo.c
 
 plugins/diskusage.so: plugins/diskusage.c
 	$(CC) $(CFLAGS) -shared $< -o $@
+
+plugins/markup.so: plugins/markup.c src/markup.c src/markup.h
+	$(CC) $(CFLAGS) -shared plugins/markup.c src/markup.c -o $@
 
 clean:
 	rm -f src/*.o tuxpad plugins/*.so

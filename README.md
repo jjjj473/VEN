@@ -21,7 +21,8 @@ The program counts the number of lines in the given file and then demonstrates
 loading plugins from the `plugins/` directory if they exist. Plugins must
 export a `void run(const char *filename)` function. The provided plugins
 include a word counter as well as Linux tools that print system and disk
-information.
+information, plus a new `markup` parser/renderer that extends basic markdown
+into richer components.
 
 ### Plugins
 
@@ -33,6 +34,7 @@ plugins include:
 * `wordcount.so` &ndash; counts words in the file
 * `sysinfo.so` &ndash; prints basic CPU and memory information
 * `diskusage.so` &ndash; shows disk usage for the file's filesystem
+* `markup.so` &ndash; parses markdown-like text into rich `markup` components and renders an HTML preview
 
 ### Build & Run
 
@@ -59,3 +61,12 @@ To clean build artifacts run:
 ```sh
 make clean
 ```
+
+
+## Markup library
+
+`src/markup.c` + `src/markup.h` implement a reusable C library named **markup**.
+It parses documents into components (headings, paragraphs, list items, block
+quotes, and code blocks), assigns smoothness/complexity scores, and can render
+components to HTML-like output. The `plugins/markup.so` plugin demonstrates this
+library and is intended to be the richer successor to plain markdown handling.
