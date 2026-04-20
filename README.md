@@ -1,60 +1,122 @@
 # VEN
 
-VEN is a prototype code editor now implemented purely in C. It demonstrates a
-very small plugin system that loads tools as shared libraries at runtime.
+VEN is a terminal-first, open-source toolkit for developers. It is built in C,
+ships as a single CLI binary (`tuxpad`), and supports runtime plugins so teams
+can extend local infrastructure checks without rebuilding the core.
 
-## Building
+## What it does
 
-Use `make` to build the `tuxpad` binary and example plugin:
+`./tuxpad` helps developers run local file and system checks from the terminal:
+
+- scan files for lines, words, and bytes
+- load Linux-compatible `.so` plugins dynamically
+- keep core tooling minimal while allowing extension via plugins
+
+## Build
 
 ```sh
 make
 ```
 
-Run the program by providing a file name:
+## CLI usage
+
+Quick scan (default mode):
 
 ```sh
 ./tuxpad path/to/file.txt
 ```
 
-The program counts the number of lines in the given file and then demonstrates
-loading plugins from the `plugins/` directory if they exist. Plugins must
-export a `void run(const char *filename)` function. The provided plugins
-include a word counter as well as Linux tools that print system and disk
-information.
+Explicit scan modes:
 
-### Plugins
+```sh
+./tuxpad scan path/to/file.txt          # scan + run all plugins
+./tuxpad scan path/to/file.txt none     # scan only
+./tuxpad scan path/to/file.txt wordcount
+```
 
-Plugins are C shared libraries stored in the `plugins/` directory. Each library
-should define a `run` function accepting the file name to operate on. The
-`tuxpad` executable loads any available plugins after counting lines. Provided
-plugins include:
+List available plugins:
 
-* `wordcount.so` &ndash; counts words in the file
-* `sysinfo.so` &ndash; prints basic CPU and memory information
-* `diskusage.so` &ndash; shows disk usage for the file's filesystem
+```sh
+./tuxpad plugins
+```
 
-### Build & Run
+## JavaScript API (No local clone required)
 
-`make` also builds the example plugins so running `./tuxpad FILE` will count
-lines and then invoke any plugins found in the `plugins/` directory.
+VEN also provides a browser/Node-compatible JavaScript library so developers can
+use file-metric APIs and plugin hooks through CDNs without downloading this
+repository.
 
-## GUI
+### GitHub CDN options
 
-An optional Tkinter interface is included for experimenting with the plugins.
-Build everything then launch the GUI with:
+Use one of these endpoints (replace `<owner>`, `<repo>`, and `<tag>`):
+
+```html
+<!-- jsDelivr via GitHub -->
+<script src="https://cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/js/ven.js"></script>
+
+<!-- GitHub raw CDN style -->
+<script src="https://raw.githubusercontent.com/<owner>/<repo>/<tag>/js/ven.js"></script>
+```
+
+### Browser example
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/js/ven.js"></script>
+<script>
+  const result = VEN.scan('hello\nworld\n', { plugins: 'none' });
+  console.log(result.metrics); // { lines: 2, words: 2, bytes: 12 }
+</script>
+```
+
+### Node.js example
+
+```js
+const VEN = require('./js/ven.js');
+
+VEN.use('uppercaseWords', ({ text }) => text.toUpperCase().split(/\s+/).length);
+const result = VEN.scan('ven makes terminal tools simple', { plugins: 'all' });
+console.log(result);
+```
+
+### JS API reference
+
+- `VEN.countLines(text)`
+- `VEN.countWords(text)`
+- `VEN.countBytes(text)`
+- `VEN.scan(text, { plugins: 'none' | 'all' | string | string[] })`
+- `VEN.use(name, pluginFn)`
+- `VEN.listPlugins()`
+- `VEN.runPlugin(name, payload)`
+
+## Plugin model (C CLI)
+
+Plugins are shared libraries in `plugins/` and must export:
+
+```c
+void run(const char *filename)
+```
+
+During `scan`, VEN discovers all `.so` files in `plugins/` and executes either:
+
+- all plugins (`all` mode, default)
+- no plugins (`none`)
+- one plugin selected by name fragment
+
+Provided reference plugins:
+
+- `wordcount.so`: word metrics for the file
+- `sysinfo.so`: Linux system and memory summary
+- `diskusage.so`: filesystem space info
+
+## Optional GUI
+
+A lightweight Tkinter UI remains available for experimentation:
 
 ```sh
 make gui
 ```
 
-The GUI allows you to open a file and run the available plugins from the
-`Plugins` menu. If no graphical display is available the GUI will exit with a
-message.
-
-## Cleaning
-
-To clean build artifacts run:
+## Clean
 
 ```sh
 make clean
