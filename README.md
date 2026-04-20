@@ -40,7 +40,55 @@ List available plugins:
 ./tuxpad plugins
 ```
 
-## Plugin model
+## JavaScript API (No local clone required)
+
+VEN also provides a browser/Node-compatible JavaScript library so developers can
+use file-metric APIs and plugin hooks through CDNs without downloading this
+repository.
+
+### GitHub CDN options
+
+Use one of these endpoints (replace `<owner>`, `<repo>`, and `<tag>`):
+
+```html
+<!-- jsDelivr via GitHub -->
+<script src="https://cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/js/ven.js"></script>
+
+<!-- GitHub raw CDN style -->
+<script src="https://raw.githubusercontent.com/<owner>/<repo>/<tag>/js/ven.js"></script>
+```
+
+### Browser example
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/js/ven.js"></script>
+<script>
+  const result = VEN.scan('hello\nworld\n', { plugins: 'none' });
+  console.log(result.metrics); // { lines: 2, words: 2, bytes: 12 }
+</script>
+```
+
+### Node.js example
+
+```js
+const VEN = require('./js/ven.js');
+
+VEN.use('uppercaseWords', ({ text }) => text.toUpperCase().split(/\s+/).length);
+const result = VEN.scan('ven makes terminal tools simple', { plugins: 'all' });
+console.log(result);
+```
+
+### JS API reference
+
+- `VEN.countLines(text)`
+- `VEN.countWords(text)`
+- `VEN.countBytes(text)`
+- `VEN.scan(text, { plugins: 'none' | 'all' | string | string[] })`
+- `VEN.use(name, pluginFn)`
+- `VEN.listPlugins()`
+- `VEN.runPlugin(name, payload)`
+
+## Plugin model (C CLI)
 
 Plugins are shared libraries in `plugins/` and must export:
 
